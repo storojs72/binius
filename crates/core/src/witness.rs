@@ -26,7 +26,7 @@ where
 	U: UnderlierType + PackScalar<FW>,
 	FW: Field,
 {
-	entries: Vec<Option<MultilinearWitness<'a, PackedType<U, FW>>>>,
+	pub entries: Vec<Option<MultilinearWitness<'a, PackedType<U, FW>>>>,
 }
 
 #[derive(Debug, thiserror::Error)]

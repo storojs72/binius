@@ -57,6 +57,14 @@ name = "blake3"
 path = "blake3.rs"
 
 [[example]]
+name = "u32addition_experiments"
+path = "u32addition_experiments.rs"
+
+[[example]]
+name = "trivial"
+path = "trivial.rs"
+
+[[example]]
 name = "sha256_circuit_with_lookup"
 path = "sha256_circuit_with_lookup.rs"
 

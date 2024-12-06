@@ -25,9 +25,9 @@ use crate::{fold, Error, MultilinearQueryRef, PackingDeref};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MultilinearExtension<P: PackedField, Data: Deref<Target = [P]> = Vec<P>> {
 	// The number of variables
-	mu: usize,
+	pub mu: usize,
 	// The evaluations of the polynomial over the boolean hypercube, in lexicographic order
-	evals: Data,
+	pub evals: Data,
 }
 
 impl<P: PackedField> MultilinearExtension<P> {
