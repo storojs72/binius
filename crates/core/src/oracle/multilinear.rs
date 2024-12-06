@@ -16,10 +16,10 @@ pub type OracleId = usize;
 ///
 /// This is kept internal to `MultilinearOracleVec`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct CommittedBatchMeta {
-	oracle_ids: Vec<OracleId>,
-	n_vars: usize,
-	tower_level: usize,
+pub struct CommittedBatchMeta {
+	pub oracle_ids: Vec<OracleId>,
+	pub n_vars: usize,
+	pub tower_level: usize,
 }
 
 /// Meta struct that lets you add optional `name` for the Multilinear before adding to the
