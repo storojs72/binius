@@ -54,15 +54,15 @@ path = "sha256_circuit.rs"
 
 [[example]]
 name = "blake3"
-path = "blake3.rs"
+path = "acc-blake3.rs"
 
 [[example]]
 name = "u32addition_experiments"
-path = "u32addition_experiments.rs"
+path = "acc-u32-addition.rs"
 
 [[example]]
 name = "trivial"
-path = "trivial.rs"
+path = "acc-trivial.rs"
 
 [[example]]
 name = "sha256_circuit_with_lookup"
