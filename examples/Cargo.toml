@@ -69,6 +69,10 @@ name = "acc-u8-add"
 path = "acc-u8-addition.rs"
 
 [[example]]
+name = "acc-assert-eq"
+path = "acc-assert-eq.rs"
+
+[[example]]
 name = "sha256_circuit_with_lookup"
 path = "sha256_circuit_with_lookup.rs"
 
