@@ -63,12 +63,16 @@ fn cs_builder(x: u32, y: u32) -> u32 {
 }
 
 fn manual_cs(x: u32, y: u32) -> u32 {
+	//25 + 50 = 75
+	//
+	//25, 50, 48, 96, 75
+
 	// instantiate witness
 	let (in4, carry) = x.overflowing_add(y);
 	let in3 = x ^ y ^ in4;
 	let in2 = ((carry as u32) << 31) | in3 >> 1;
-	let in0 = x;
 	let in1 = y;
+	let in0 = x;
 
 	let mut witness = MultilinearExtensionIndex::<OptimalUnderlier, BinaryField128b>::new();
 	for item in [in0, in1, in2, in3, in4] {

@@ -65,6 +65,10 @@ name = "trivial"
 path = "acc-trivial.rs"
 
 [[example]]
+name = "acc-u8-add"
+path = "acc-u8-addition.rs"
+
+[[example]]
 name = "sha256_circuit_with_lookup"
 path = "sha256_circuit_with_lookup.rs"
 
