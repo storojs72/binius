@@ -15,6 +15,7 @@ pub mod sha256;
 pub mod transparent;
 pub mod u32add;
 pub mod u32fib;
+pub mod u8add;
 pub mod unconstrained;
 pub mod vision;
 
