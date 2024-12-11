@@ -3,9 +3,7 @@ use binius_core::{
 	constraint_system, constraint_system::ConstraintSystem, fiat_shamir::HasherChallenger,
 	tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex,
 };
-use binius_field::{
-	arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b
-};
+use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b};
 use binius_hal::make_portable_backend;
 use binius_hash::{GroestlDigestCompression, GroestlHasher};
 use binius_macros::arith_expr;
@@ -201,6 +199,21 @@ fn main() {
 
 	// Negative test (input contains non-zero element)
 	input[9999] = true;
+	let allocator = bumpalo::Bump::new();
+	let mut builder =
+		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
+
+	assert_eq_gadget(&mut builder, input.as_slice());
+
+	let witness = builder.take_witness().unwrap();
+	let cs = builder.build().unwrap();
+
+	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
+	assert!(prove_no_issues);
+	assert!(!verify_no_issues); // issue on verification
+
+	// Negative test (input contains all non-zero element)
+	input = [true; 1000000];
 	let allocator = bumpalo::Bump::new();
 	let mut builder =
 		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
