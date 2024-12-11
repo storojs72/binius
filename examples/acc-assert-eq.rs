@@ -147,6 +147,8 @@ fn assert_eq_gadget(
 	builder: &mut ConstraintSystemBuilder<OptimalUnderlier, BinaryField128b>,
 	input: &[bool],
 ) {
+	assert!(input.len() > 0);
+
 	fn set_bit(a: u128, index: usize) -> u128 {
 		assert!(index < 128);
 		let out = a | MASK[index];
@@ -182,6 +184,21 @@ fn assert_eq_gadget(
 }
 
 fn main() {
+	// Positive test (input is all zeroes)
+	let input = [false; 10];
+	let allocator = bumpalo::Bump::new();
+	let mut builder =
+		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
+
+	assert_eq_gadget(&mut builder, input.as_slice());
+
+	let witness = builder.take_witness().unwrap();
+	let cs = builder.build().unwrap();
+
+	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
+	assert!(prove_no_issues);
+	assert!(verify_no_issues);
+
 	// Positive test (input is all zeroes)
 	let mut input = [false; 1000000];
 
