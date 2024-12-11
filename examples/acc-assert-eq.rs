@@ -148,6 +148,7 @@ fn assert_eq_gadget(
 	input: &[bool],
 ) {
 	fn set_bit(a: u128, index: usize) -> u128 {
+		assert!(index < 128);
 		let out = a | MASK[index];
 		out
 	}
@@ -159,16 +160,16 @@ fn assert_eq_gadget(
 		.chunks(128)
 		.into_iter()
 		.enumerate()
-		.for_each(|(index, chunk)| {
+		.for_each(|(chunk_index, chunk)| {
 			let mut value = 0u128;
-			for (index, one) in chunk.iter().enumerate() {
+			for (bit_index, one) in chunk.iter().enumerate() {
 				if *one {
-					value = set_bit(value, index);
+					value = set_bit(value, bit_index);
 				}
 			}
 			let value_id = variable_u128::<_, _, BinaryField1b>(
 				builder,
-				format!("packed_value::{}", index),
+				format!("packed_value::{}", chunk_index),
 				LOG_SIZE,
 				value,
 			)
