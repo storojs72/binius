@@ -184,66 +184,75 @@ fn assert_eq_gadget(
 }
 
 fn main() {
-	// Positive test (input is all zeroes)
+	fn positive_test(input: &[bool]) {
+		let allocator = bumpalo::Bump::new();
+		let mut builder =
+			ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(
+				&allocator,
+			);
+
+		assert_eq_gadget(&mut builder, input);
+
+		let witness = builder.take_witness().unwrap();
+		let cs = builder.build().unwrap();
+
+		let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
+		assert!(prove_no_issues);
+		assert!(verify_no_issues);
+	}
+
+	fn negative_test(input: &[bool]) {
+		let allocator = bumpalo::Bump::new();
+		let mut builder =
+			ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(
+				&allocator,
+			);
+
+		assert_eq_gadget(&mut builder, input);
+
+		let witness = builder.take_witness().unwrap();
+		let cs = builder.build().unwrap();
+
+		let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
+		assert!(prove_no_issues);
+		assert!(!verify_no_issues); // issue on verification is expected
+	}
+
+	let input = [false; 1];
+	positive_test(&input);
+
+	let input = [false; 2];
+	positive_test(&input);
+
 	let input = [false; 10];
-	let allocator = bumpalo::Bump::new();
-	let mut builder =
-		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
+	positive_test(&input);
 
-	assert_eq_gadget(&mut builder, input.as_slice());
+	let input = [false; 1000000];
+	positive_test(&input);
 
-	let witness = builder.take_witness().unwrap();
-	let cs = builder.build().unwrap();
-
-	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-	assert!(prove_no_issues);
-	assert!(verify_no_issues);
-
-	// Positive test (input is all zeroes)
 	let mut input = [false; 1000000];
-
-	let allocator = bumpalo::Bump::new();
-	let mut builder =
-		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
-
-	assert_eq_gadget(&mut builder, input.as_slice());
-
-	let witness = builder.take_witness().unwrap();
-	let cs = builder.build().unwrap();
-
-	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-	assert!(prove_no_issues);
-	assert!(verify_no_issues);
-
-	// Negative test (input contains non-zero element)
 	input[9999] = true;
-	let allocator = bumpalo::Bump::new();
-	let mut builder =
-		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
+	negative_test(&input);
 
-	assert_eq_gadget(&mut builder, input.as_slice());
+	let input = [true; 1];
+	negative_test(&input);
 
-	let witness = builder.take_witness().unwrap();
-	let cs = builder.build().unwrap();
+	let input = [true; 2];
+	negative_test(&input);
 
-	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-	assert!(prove_no_issues);
-	assert!(!verify_no_issues); // issue on verification
+	let input = [true; 10];
+	negative_test(&input);
 
-	// Negative test (input contains all non-zero element)
-	input = [true; 1000000];
-	let allocator = bumpalo::Bump::new();
-	let mut builder =
-		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
+	let input = [true; 1000000];
+	negative_test(&input);
 
-	assert_eq_gadget(&mut builder, input.as_slice());
+	let mut input = [false; 10];
+	input[0] = true;
+	input[2] = true;
+	negative_test(&input);
 
-	let witness = builder.take_witness().unwrap();
-	let cs = builder.build().unwrap();
-
-	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-	assert!(prove_no_issues);
-	assert!(!verify_no_issues); // issue on verification
+	input[3] = true;
+	negative_test(&input);
 }
 
 fn prove_verify_test(
