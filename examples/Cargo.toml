@@ -57,7 +57,7 @@ name = "blake3"
 path = "acc-blake3.rs"
 
 [[example]]
-name = "u32addition_experiments"
+name = "acc-u32-addition"
 path = "acc-u32-addition.rs"
 
 [[example]]
@@ -75,6 +75,10 @@ path = "acc-assert-eq.rs"
 [[example]]
 name = "acc-benchmark"
 path = "acc-benchmark.rs"
+
+[[example]]
+name = "acc-assert-ne"
+path = "acc-assert-ne.rs"
 
 [[example]]
 name = "sha256_circuit_with_lookup"
