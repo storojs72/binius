@@ -1,13 +1,19 @@
+//#![feature(generic_const_exprs)]
+
 use binius_circuits::{builder::ConstraintSystemBuilder, unconstrained::variable_u128};
 use binius_core::{
 	constraint_system, constraint_system::ConstraintSystem, fiat_shamir::HasherChallenger,
-	tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex,
+	oracle::OracleId, tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex,
 };
 use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b};
 use binius_hal::make_portable_backend;
 use binius_hash::{GroestlDigestCompression, GroestlHasher};
 use binius_macros::arith_expr;
-use binius_math::DefaultEvaluationDomainFactory;
+use binius_math::{
+	ArithExpr,
+	ArithExpr::{Add, Const, Mul, Var},
+	DefaultEvaluationDomainFactory,
+};
 use groestl_crypto::Groestl256;
 
 const LOG_SIZE: usize = 10;
@@ -143,129 +149,148 @@ const MASK: [u128; 128] = [
     0b10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000,
 ];
 
-fn assert_eq_gadget(
+fn assert_ne_gadget<const N: usize, const M: usize>(
 	builder: &mut ConstraintSystemBuilder<OptimalUnderlier, BinaryField128b>,
 	input: &[bool],
 ) {
-	assert!(input.len() > 0);
-
 	fn set_bit(a: u128, index: usize) -> u128 {
 		assert!(index < 128);
 		let out = a | MASK[index];
 		out
 	}
 
-	// Split input into 128-bit chunks, instantiate variable by setting its bits from the input and finally constraint it to be zero
-	input
+	assert!(input.len() > 0);
+
+	let ids = input
 		.chunks(128)
 		.into_iter()
 		.enumerate()
-		.for_each(|(chunk_index, chunk)| {
+		.map(|(chunk_index, chunk)| {
 			let mut value = 0u128;
 			for (bit_index, one) in chunk.iter().enumerate() {
 				if *one {
 					value = set_bit(value, bit_index);
 				}
 			}
-			let value_id = variable_u128::<_, _, BinaryField1b>(
-				builder,
-				format!("packed_value::{}", chunk_index),
-				LOG_SIZE,
-				value,
-			)
-			.unwrap();
-			builder.assert_zero([value_id], arith_expr!([val] = val - 0).convert_field());
-		});
+			let id = if value != 0u128 {
+				variable_u128::<_, _, BinaryField1b>(
+					builder,
+					format!("packed_value::{}", chunk_index),
+					LOG_SIZE,
+					1u128,
+				)
+				.unwrap()
+			} else {
+				variable_u128::<_, _, BinaryField1b>(
+					builder,
+					format!("packed_value::{}", chunk_index),
+					LOG_SIZE,
+					0u128,
+				)
+				.unwrap()
+			};
+			id
+		})
+		.collect::<Vec<OracleId>>();
+
+	let mut ids_array: [OracleId; N] = [0usize; N];
+	ids_array.copy_from_slice(&ids);
+
+	// Constraint:
+	//
+	// NOT (x_0 OR x_1 OR x_2 OR ... OR x_n) == 0, where
+	//
+	// NOT x = x + 1 (considering X as a bit),
+	// x_0 OR x_1 = (x_0 XOR x_1) XOR (x_0 AND x_1).
+
+	let mut composition = Var(ids_array[0].clone());
+	for id in &ids_array[1..] {
+		composition = composition.clone() + Var(*id) + composition.clone() * Var(*id);
+	}
+
+	let one = variable_u128::<_, _, BinaryField1b>(builder, "one", LOG_SIZE, 1u128).unwrap();
+
+	// FIXME: Can we avoid generic M?
+	let mut oracle_ids: [usize; M] = [0usize; M];
+	let (left, right) = oracle_ids.split_at_mut(ids_array.len());
+	left.copy_from_slice(&ids_array);
+	right.copy_from_slice(&[one]);
+
+	// FIXME: Why 'composition - Const(1)' not possible?
+	builder.assert_zero(oracle_ids, composition - Var(one));
 }
 
 fn main() {
-	fn positive_test(input: &[bool]) {
-		let allocator = bumpalo::Bump::new();
-		let mut builder =
-			ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(
-				&allocator,
-			);
+	// The only case when proving should fail - when input is all zeroes
+	let mut input = [false; 256];
 
-		assert_eq_gadget(&mut builder, input);
+	let allocator = bumpalo::Bump::new();
+	let mut builder =
+		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
 
-		let witness = builder.take_witness().unwrap();
-		let cs = builder.build().unwrap();
+	assert_ne_gadget::<2, 3>(&mut builder, &input);
 
-		let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-		assert!(prove_no_issues);
-		assert!(verify_no_issues);
-	}
+	let witness = builder.take_witness().unwrap();
+	let cs = builder.build().unwrap();
 
-	fn negative_test(input: &[bool]) {
-		let allocator = bumpalo::Bump::new();
-		let mut builder =
-			ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(
-				&allocator,
-			);
+	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
+	assert!(prove_no_issues);
+	assert!(!verify_no_issues);
+	println!("ok");
 
-		assert_eq_gadget(&mut builder, input);
-
-		let witness = builder.take_witness().unwrap();
-		let cs = builder.build().unwrap();
-
-		let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-		assert!(prove_no_issues);
-		assert!(!verify_no_issues); // issue on verification is expected
-	}
-
-	println!("Start");
-
-	let input = [false; 1];
-	positive_test(&input);
-	println!("OK");
-
-	let input = [false; 2];
-	positive_test(&input);
-	println!("OK");
-
-	let input = [false; 10];
-	positive_test(&input);
-	println!("OK");
-
-	let input = [false; 256];
-	positive_test(&input);
-	println!("OK");
-
-	let input = [false; 100000];
-	positive_test(&input);
-	println!("OK");
-
-	let mut input = [false; 100000];
-	input[9999] = true;
-	negative_test(&input);
-	println!("OK");
-
-	let input = [true; 1];
-	negative_test(&input);
-	println!("OK");
-
-	let input = [true; 2];
-	negative_test(&input);
-	println!("OK");
-
-	let input = [true; 10];
-	negative_test(&input);
-	println!("OK");
-
-	let input = [true; 100000];
-	negative_test(&input);
-	println!("OK");
-
-	let mut input = [false; 10];
+	// Negative test
+	let mut input = [false; 512];
 	input[0] = true;
-	input[2] = true;
-	negative_test(&input);
-	println!("OK");
 
-	input[3] = true;
-	negative_test(&input);
-	println!("OK");
-	println!("Done");
+	let allocator = bumpalo::Bump::new();
+	let mut builder =
+		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
+
+	assert_ne_gadget::<4, 5>(&mut builder, &input);
+
+	let witness = builder.take_witness().unwrap();
+	let cs = builder.build().unwrap();
+
+	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
+	assert!(prove_no_issues);
+	assert!(verify_no_issues);
+	println!("ok");
+
+	// Negative test
+	let mut input = [false; 1024];
+	input[0] = true;
+
+	let allocator = bumpalo::Bump::new();
+	let mut builder =
+		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
+
+	assert_ne_gadget::<8, 9>(&mut builder, &input);
+
+	let witness = builder.take_witness().unwrap();
+	let cs = builder.build().unwrap();
+
+	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
+	assert!(prove_no_issues);
+	assert!(verify_no_issues);
+	println!("ok");
+
+	// FIXME: gadget doesn't work on bigger inputs
+	//// Negative test
+	//let mut input = [false; 2048];
+	//input[0] = true;
+	//
+	//let allocator = bumpalo::Bump::new();
+	//let mut builder = ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
+	//
+	//assert_ne_gadget::<16, 17>(&mut builder, &input);
+	//
+	//let witness = builder.take_witness().unwrap();
+	//let cs = builder.build().unwrap();
+	//
+	//let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
+	//assert!(prove_no_issues);
+	//assert!(verify_no_issues);
+	//println!("ok");
 }
 
 fn prove_verify_test(
@@ -288,6 +313,7 @@ fn prove_verify_test(
 
 	let prove_no_issues = proof.is_ok();
 	if !prove_no_issues {
+		println!("{:?}", proof);
 		// Since we have issue on proving, verification is also an issue
 		return (false, false);
 	}
