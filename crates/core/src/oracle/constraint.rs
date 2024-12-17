@@ -279,3 +279,25 @@ fn positions<T: Eq>(subset: &[T], superset: &[T]) -> Option<Vec<usize>> {
 		})
 		.collect()
 }
+
+#[allow(clippy::type_complexity)]
+fn thunk_acc<F: Field>(
+	oracle_ids: Vec<OracleId>,
+	composition: ArithExpr<F>,
+) -> Box<dyn FnOnce(&[OracleId]) -> ArithExpr<F>> {
+	Box::new(move |all_oracle_ids| {
+		let indices = oracle_ids
+			.iter()
+			.map(|subset_item| {
+				all_oracle_ids
+					.iter()
+					.position(|superset_item| superset_item == subset_item)
+					.expect("precondition: all_oracle_ids is a superset of oracle_ids")
+			})
+			.collect::<Vec<usize>>();
+
+		composition
+			.remap_vars(&indices)
+			.expect("Infallible by ConstraintSetBuilder invariants.")
+	})
+}

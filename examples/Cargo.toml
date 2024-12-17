@@ -80,6 +80,10 @@ path = "acc-benchmark.rs"
 name = "acc-assert-ne"
 path = "acc-assert-ne.rs"
 
+#[[example]]
+#name = "acc-debug"
+#path = "acc-debug.rs"
+
 [[example]]
 name = "sha256_circuit_with_lookup"
 path = "sha256_circuit_with_lookup.rs"
