@@ -122,6 +122,10 @@ where
 		self.flush(FlushDirection::Pull, channel_id, count, oracle_ids)
 	}
 
+	pub fn assert_zero_acc(&mut self, oracle_ids: Vec<OracleId>, composition: ArithExpr<F>) {
+		self.constraints.add_zerocheck_acc(oracle_ids, composition);
+	}
+
 	pub fn assert_zero<const N: usize>(
 		&mut self,
 		oracle_ids: [OracleId; N],

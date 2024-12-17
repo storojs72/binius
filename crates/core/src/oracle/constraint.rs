@@ -69,6 +69,14 @@ impl<F: Field> ConstraintSetBuilder<F> {
 		});
 	}
 
+	pub fn add_zerocheck_acc(&mut self, oracle_ids: Vec<OracleId>, composition: ArithExpr<F>) {
+		assert!(oracle_ids.len() > 0);
+		self.constraint_thunks.push(ConstraintThunk {
+			oracle_ids: oracle_ids.clone(),
+			composition_thunk: thunk_acc(oracle_ids, composition),
+			predicate: ConstraintPredicate::Zero,
+		});
+	}
 	pub fn add_zerocheck<const N: usize>(
 		&mut self,
 		oracle_ids: [OracleId; N],
@@ -264,6 +272,28 @@ fn thunk<F: Field, const N: usize>(
 				.position(|superset_item| superset_item == &subset_item)
 				.expect("precondition: all_oracle_ids is a superset of oracle_ids")
 		});
+
+		composition
+			.remap_vars(&indices)
+			.expect("Infallible by ConstraintSetBuilder invariants.")
+	})
+}
+
+#[allow(clippy::type_complexity)]
+fn thunk_acc<F: Field>(
+	oracle_ids: Vec<OracleId>,
+	composition: ArithExpr<F>,
+) -> Box<dyn FnOnce(&[OracleId]) -> ArithExpr<F>> {
+	Box::new(move |all_oracle_ids| {
+		let indices = oracle_ids
+			.iter()
+			.map(|subset_item| {
+				all_oracle_ids
+					.iter()
+					.position(|superset_item| superset_item == subset_item)
+					.expect("precondition: all_oracle_ids is a superset of oracle_ids")
+			})
+			.collect::<Vec<usize>>();
 
 		composition
 			.remap_vars(&indices)
