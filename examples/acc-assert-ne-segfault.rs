@@ -1,13 +1,14 @@
 use binius_circuits::{builder::ConstraintSystemBuilder, unconstrained::variable_u128};
 use binius_core::{
-	constraint_system, constraint_system::ConstraintSystem, fiat_shamir::HasherChallenger,
-	oracle::OracleId, tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex,
+	constraint_system, fiat_shamir::HasherChallenger, oracle::OracleId, tower::CanonicalTowerFamily,
 };
 use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b};
 use binius_hal::make_portable_backend;
 use binius_hash::{GroestlDigestCompression, GroestlHasher};
 use binius_math::{ArithExpr::Var, DefaultEvaluationDomainFactory};
+use binius_utils::rayon::adjust_thread_pool;
 use groestl_crypto::Groestl256;
+use tracing_profile::init_tracing;
 
 const LOG_SIZE: usize = 10;
 
@@ -200,119 +201,65 @@ fn assert_ne_gadget(
 
 	let one = variable_u128::<_, _, BinaryField1b>(builder, "one", LOG_SIZE, 1u128).unwrap();
 
-	// FIXME: Why 'composition - Const(1)' not possible?
 	builder.assert_zero_acc([ids, vec![one]].concat(), composition - Var(one));
 }
 
 fn main() {
-	// Positive test (at least one non-zero bit in the input)
-	let mut input = [false; 128];
-	input[0] = true;
+	fn test(input: &[bool]) {
+		println!("test on {} booleans", input.len());
+		adjust_thread_pool()
+			.as_ref()
+			.expect("failed to init thread pool");
 
-	let allocator = bumpalo::Bump::new();
-	let mut builder =
-		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
+		let trace_gen_scope = tracing::info_span!("generating trace").entered();
 
-	assert_ne_gadget(&mut builder, &input);
+		let allocator = bumpalo::Bump::new();
+		let mut builder =
+			ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(
+				&allocator,
+			);
 
-	let witness = builder.take_witness().unwrap();
-	let cs = builder.build().unwrap();
+		assert_ne_gadget(&mut builder, input);
 
-	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-	assert!(prove_no_issues);
-	assert!(verify_no_issues);
-	println!("ok");
+		drop(trace_gen_scope);
 
-	// Positive test (at least one non-zero bit in the input)
-	let mut input = [false; 400];
-	input[input.len() - 1] = true;
+		let witness = builder.take_witness().unwrap();
 
-	let allocator = bumpalo::Bump::new();
-	let mut builder =
-		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
+		let cs = builder.build().unwrap();
 
-	assert_ne_gadget(&mut builder, &input);
+		let domain_factory = DefaultEvaluationDomainFactory::default();
+		let backend = make_portable_backend();
+		let proof = constraint_system::prove::<
+			OptimalUnderlier,
+			CanonicalTowerFamily,
+			BinaryField8b,
+			_,
+			_,
+			GroestlHasher<BinaryField128b>,
+			GroestlDigestCompression<BinaryField8b>,
+			HasherChallenger<Groestl256>,
+			_,
+		>(&cs, 1usize, 100usize, witness, &domain_factory, &backend)
+		.unwrap();
 
-	let witness = builder.take_witness().unwrap();
-	let cs = builder.build().unwrap();
-
-	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-	assert!(prove_no_issues);
-	assert!(verify_no_issues);
-	println!("ok");
-
-	// Negative test (verification fails if all zeroes in the input)
-	let input = [false; 512];
-
-	let allocator = bumpalo::Bump::new();
-	let mut builder =
-		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
-
-	assert_ne_gadget(&mut builder, &input);
-
-	let witness = builder.take_witness().unwrap();
-	let cs = builder.build().unwrap();
-
-	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-	assert!(prove_no_issues);
-	assert!(!verify_no_issues);
-	println!("ok");
-
-	// Negative test (verification fails if all zeroes in the input)
-	let input = [false; 1000];
-
-	let allocator = bumpalo::Bump::new();
-	let mut builder =
-		ConstraintSystemBuilder::<OptimalUnderlier, BinaryField128b>::new_with_witness(&allocator);
-
-	assert_ne_gadget(&mut builder, &input);
-
-	let witness = builder.take_witness().unwrap();
-	let cs = builder.build().unwrap();
-
-	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-	assert!(prove_no_issues);
-	assert!(!verify_no_issues);
-	println!("ok");
-
-	// FIXME: segfault occurs when using inputs with 2000 and more bits
-}
-
-fn prove_verify_test(
-	witness: MultilinearExtensionIndex<OptimalUnderlier, BinaryField128b>,
-	constraints: ConstraintSystem<BinaryField128b>,
-) -> (bool, bool) {
-	let domain_factory = DefaultEvaluationDomainFactory::default();
-	let backend = make_portable_backend();
-	let proof = constraint_system::prove::<
-		OptimalUnderlier,
-		CanonicalTowerFamily,
-		BinaryField8b,
-		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
-		HasherChallenger<Groestl256>,
-		_,
-	>(&constraints, 1usize, 100usize, witness, &domain_factory, &backend);
-
-	let prove_no_issues = proof.is_ok();
-	if !prove_no_issues {
-		println!("{:?}", proof);
-		// Since we have issue on proving, verification is also an issue
-		return (false, false);
+		constraint_system::verify::<
+			OptimalUnderlier,
+			CanonicalTowerFamily,
+			_,
+			_,
+			GroestlHasher<BinaryField128b>,
+			GroestlDigestCompression<BinaryField8b>,
+			HasherChallenger<Groestl256>,
+		>(&cs, 1usize, 100usize, &domain_factory, vec![], proof)
+		.unwrap();
+		println!("ok");
 	}
 
-	let out = constraint_system::verify::<
-		OptimalUnderlier,
-		CanonicalTowerFamily,
-		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
-		HasherChallenger<Groestl256>,
-	>(&constraints, 1usize, 100usize, &domain_factory, vec![], proof.unwrap());
+	let _guard = init_tracing().expect("failed to initialize tracing");
 
-	let verify_no_issues = out.is_ok();
-	(prove_no_issues, verify_no_issues)
+	let input = [true; 1024];
+	test(&input);
+
+	let input = [true; 1025];
+	test(&input);
 }
