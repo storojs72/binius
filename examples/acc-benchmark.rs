@@ -1,24 +1,20 @@
 use binius_circuits::{
 	builder::ConstraintSystemBuilder,
-	unconstrained::{unconstrained, variable_u128},
+	unconstrained::variable_u128,
 };
 use binius_core::{
 	constraint_system, constraint_system::ConstraintSystem, fiat_shamir::HasherChallenger,
 	oracle::OracleId, tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex,
 };
 use binius_field::{
-	arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b, PackedField,
+	arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b,
 };
 use binius_hal::make_portable_backend;
-use binius_hash::{GroestlDigestCompression, GroestlHasher};
 use binius_macros::arith_expr;
-use binius_math::{
-	ArithExpr,
-	ArithExpr::{Add, Const, Var},
-	DefaultEvaluationDomainFactory,
-};
 use groestl_crypto::Groestl256;
 use std::time::Instant;
+use binius_hash::compress::Groestl256ByteCompression;
+use binius_math::DefaultEvaluationDomainFactory;
 
 const LOG_SIZE: usize = 10;
 
@@ -35,9 +31,8 @@ fn prove_verify_test(
 		CanonicalTowerFamily,
 		BinaryField8b,
 		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
+		Groestl256,
+		Groestl256ByteCompression,
 		HasherChallenger<Groestl256>,
 		_,
 	>(&constraints, 1usize, 100usize, witness, &domain_factory, &backend);
@@ -53,12 +48,10 @@ fn prove_verify_test(
 	let out = constraint_system::verify::<
 		OptimalUnderlier,
 		CanonicalTowerFamily,
-		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
+		Groestl256,
+		Groestl256ByteCompression,
 		HasherChallenger<Groestl256>,
-	>(&constraints, 1usize, 100usize, &domain_factory, vec![], proof.unwrap());
+	>(&constraints, 1usize, 100usize, vec![], proof.unwrap());
 	println!("verification done in {} ms", start.elapsed().as_millis());
 	println!();
 
@@ -103,15 +96,15 @@ fn benchmark_variables<const N: usize>(input: [u128; N]) {
 				LOG_SIZE,
 				item,
 			)
-			.unwrap()
+				.unwrap()
 		})
 		.collect::<Vec<OracleId>>()
 		.try_into()
 		.unwrap();
 
-	let x = vars[0];
-	let y = vars[1];
-	let composition = arith_expr!([x, y] = x + x - y - y + 0);
+	//let x = vars[0];
+	//let y = vars[1];
+	let composition = arith_expr!([x, y] = x + x - y - y);
 
 	builder.assert_zero(vars, composition.convert_field());
 
@@ -136,6 +129,7 @@ fn main() {
 	let input = [1u128; 50000];
 	benchmark_variables(input);
 
+    // TODO: segfault begins happening
 	println!("100000 variables");
 	let input = [1u128; 100000];
 	benchmark_variables(input);

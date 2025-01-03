@@ -1,21 +1,16 @@
 use anyhow::Result;
 use binius_circuits::{
-	bitwise::xor, builder::ConstraintSystemBuilder, sha256, u32add::u32add_committed,
+	bitwise::xor, builder::ConstraintSystemBuilder, sha256, arithmetic,
 	unconstrained::variable,
 };
-use binius_core::{
-	constraint_system, fiat_shamir::HasherChallenger, oracle::OracleId, tower::CanonicalTowerFamily,
-};
+use binius_core::oracle::OracleId;
 use binius_field::{
-	arch::OptimalUnderlier, as_packed_field::PackScalar, underlier::UnderlierType, BinaryField128b,
-	BinaryField1b, BinaryField8b, TowerField,
+	arch::OptimalUnderlier, as_packed_field::PackScalar, BinaryField128b,
+	BinaryField1b, TowerField,
 };
-use binius_hal::make_portable_backend;
-use binius_hash::{GroestlDigestCompression, GroestlHasher};
-use binius_math::DefaultEvaluationDomainFactory;
 use binius_utils::checked_arithmetics::log2_ceil_usize;
 use bytemuck::Pod;
-use groestl_crypto::Groestl256;
+use binius_acc_utils::prove_verify_test;
 
 const COMPRESSION_LOG_LEN: usize = 5;
 
@@ -144,17 +139,19 @@ fn in_circuit_computation() -> Result<Vec<u32>> {
 		let n_compressions = 32;
 		let log_size = log2_ceil_usize(n_compressions) + COMPRESSION_LOG_LEN;
 
-		let a_add_b = u32add_committed(
+		let a_add_b = arithmetic::u32::add(
 			builder,
 			format!("a + b, oracle_id: {}, oracle_id: {}", state[a], state[b]),
 			state[a],
 			state[b],
+			arithmetic::Flags::Unchecked
 		)?;
-		let state_a = u32add_committed(
+		let state_a = arithmetic::u32::add(
 			builder,
 			format!("a + b + mx, oracle_id: {}, oracle_id: {}", a_add_b, mx),
 			a_add_b,
 			mx,
+			arithmetic::Flags::Unchecked
 		)?;
 		let d_xor_a = xor(
 			builder,
@@ -170,11 +167,12 @@ fn in_circuit_computation() -> Result<Vec<u32>> {
 			&[(d_xor_a, 16, sha256::RotateRightType::Circular)],
 		)?;
 
-		let state_c = u32add_committed(
+		let state_c = arithmetic::u32::add(
 			builder,
 			format!("c + d, oracle_id: {}, oracle_id: {}", state[c], state_d),
 			state[c],
 			state_d,
+			arithmetic::Flags::Unchecked
 		)?;
 		let b_xor_c = xor(
 			builder,
@@ -190,17 +188,19 @@ fn in_circuit_computation() -> Result<Vec<u32>> {
 			&[(b_xor_c, 12, sha256::RotateRightType::Circular)],
 		)?;
 
-		let state_a = u32add_committed(
+		let state_a = arithmetic::u32::add(
 			builder,
 			format!("a + b, oracle_id: {}, oracle_id: {}", state_a, state_b),
 			state_a,
 			state_b,
+			arithmetic::Flags::Unchecked
 		)?;
-		let state_a = u32add_committed(
+		let state_a = arithmetic::u32::add(
 			builder,
 			format!("a + b + my, oracle_id: {}, oracle_id: {}", state_a, my),
 			state_a,
 			my,
+			arithmetic::Flags::Unchecked
 		)?;
 		let d_xor_a = xor(
 			builder,
@@ -216,11 +216,12 @@ fn in_circuit_computation() -> Result<Vec<u32>> {
 			&[(d_xor_a, 8, sha256::RotateRightType::Circular)],
 		)?;
 
-		let state_c = u32add_committed(
+		let state_c = arithmetic::u32::add(
 			builder,
 			format!("c + d, oracle_id: {}, oracle_id: {}", state_c, state_d),
 			state_c,
 			state_d,
+			arithmetic::Flags::Unchecked
 		)?;
 
 		let b_xor_c = xor(
@@ -340,14 +341,17 @@ fn in_circuit_computation() -> Result<Vec<u32>> {
 		state_vector.push(get_u32_by_id::<U, BinaryField128b>(&mut builder, item_id));
 	}
 
-	prove_verify_test(builder)?;
+	let witness = builder.take_witness()?;
+	let cs = builder.build()?;
+
+	prove_verify_test(witness, cs);
 
 	Ok(state_vector)
 }
 
 fn get_u32_by_id<U, F>(builder: &mut ConstraintSystemBuilder<U, F>, id: OracleId) -> u32
 where
-	U: UnderlierType + Pod + PackScalar<F> + PackScalar<BinaryField1b>,
+	U: PackScalar<F> + PackScalar<BinaryField1b> + Pod,
 	F: TowerField,
 {
 	let witness = builder.witness().unwrap();
@@ -356,48 +360,10 @@ where
 	u32::from_le_bytes(val[0..4].try_into().unwrap())
 }
 
-fn prove_verify_test(
-	mut builder: ConstraintSystemBuilder<OptimalUnderlier, BinaryField128b>,
-) -> Result<()> {
-	let witness = builder
-		.take_witness()
-		.expect("builder created with witness");
-
-	let constraint_system = builder.build()?;
-
-	let domain_factory = DefaultEvaluationDomainFactory::default();
-	let backend = make_portable_backend();
-
-	let proof = constraint_system::prove::<
-		OptimalUnderlier,
-		CanonicalTowerFamily,
-		BinaryField8b,
-		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
-		HasherChallenger<Groestl256>,
-		_,
-	>(&constraint_system, 1usize, 100usize, witness, &domain_factory, &backend)?;
-
-	constraint_system::verify::<
-		OptimalUnderlier,
-		CanonicalTowerFamily,
-		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
-		HasherChallenger<Groestl256>,
-	>(&constraint_system, 1usize, 100usize, &domain_factory, vec![], proof)?;
-
-	println!("proving test successful");
-
-	Ok(())
-}
-
 fn main() -> Result<()> {
 	let a = out_of_circuit_computation();
 	let b = in_circuit_computation().unwrap();
 	assert_eq!(a, b);
+	println!("OK");
 	Ok(())
 }
