@@ -1,0 +1,14 @@
+[package]
+name = "binius_acc_utils"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+binius_core = { path = "../core" }
+binius_field = { path = "../field" }
+binius_hal = { path = "../hal" }
+binius_hash = { path = "../hash" }
+binius_macros = { path = "../macros" }
+binius_math = { path = "../math" }
+groestl_crypto = { package = "groestl", version = "0.10.1" }

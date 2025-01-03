@@ -1,11 +1,11 @@
 use binius_circuits::{
 	builder::ConstraintSystemBuilder,
-	u32add::u32add_committed,
-	unconstrained::{variable, variable_u128, variable_u32},
+	unconstrained::variable_u128,
 };
+use binius_circuits::arithmetic::Flags;
 use binius_field::{
-	arch::{OptimalUnderlier, OptimalUnderlier256b},
-	BinaryField128b, BinaryField1b, BinaryField64b, BinaryField8b,
+	arch::OptimalUnderlier,
+	BinaryField128b, BinaryField1b
 };
 
 // this constant defines how much is the memory allocated for the variables in constraints system, for example for OptimalUnderlier (OptimalUnderlier128b):
@@ -33,7 +33,7 @@ fn in_circuit_computation() -> u32 {
 
 	let x = variable_u128::<_, _, BinaryField1b>(&mut builder, "x", LOG_SIZE, x).unwrap();
 	let y = variable_u128::<_, _, BinaryField1b>(&mut builder, "y", LOG_SIZE, y).unwrap();
-	let sum = u32add_committed(&mut builder, "x + y", x, y).unwrap();
+	let sum = binius_circuits::arithmetic::u32::add(&mut builder, "x + y", x, y, Flags::Unchecked).unwrap();
 	//let sum = u32add_committed(&mut builder, "sum + x", sum, x).unwrap();
 
 	let witness = builder.witness().unwrap();

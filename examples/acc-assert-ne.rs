@@ -1,13 +1,8 @@
 use binius_circuits::{builder::ConstraintSystemBuilder, unconstrained::variable_u128};
-use binius_core::{
-	constraint_system, constraint_system::ConstraintSystem, fiat_shamir::HasherChallenger,
-	oracle::OracleId, tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex,
-};
-use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b};
-use binius_hal::make_portable_backend;
-use binius_hash::{GroestlDigestCompression, GroestlHasher};
-use binius_math::{ArithExpr::Var, DefaultEvaluationDomainFactory};
-use groestl_crypto::Groestl256;
+use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b};
+use binius_acc_utils::prove_verify_test;
+use binius_core::oracle::OracleId;
+use binius_math::ArithExpr::Var;
 
 const LOG_SIZE: usize = 10;
 
@@ -201,7 +196,7 @@ fn assert_ne_gadget(
 	let one = variable_u128::<_, _, BinaryField1b>(builder, "one", LOG_SIZE, 1u128).unwrap();
 
 	// FIXME: Why 'composition - Const(1)' not possible?
-	builder.assert_zero_acc([ids, vec![one]].concat(), composition - Var(one));
+	builder.assert_zero([ids, vec![one]].concat(), composition - Var(one));
 }
 
 fn main() {
@@ -276,43 +271,4 @@ fn main() {
 	println!("ok");
 
 	// FIXME: segfault occurs when using inputs with 2000 and more bits
-}
-
-fn prove_verify_test(
-	witness: MultilinearExtensionIndex<OptimalUnderlier, BinaryField128b>,
-	constraints: ConstraintSystem<BinaryField128b>,
-) -> (bool, bool) {
-	let domain_factory = DefaultEvaluationDomainFactory::default();
-	let backend = make_portable_backend();
-	let proof = constraint_system::prove::<
-		OptimalUnderlier,
-		CanonicalTowerFamily,
-		BinaryField8b,
-		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
-		HasherChallenger<Groestl256>,
-		_,
-	>(&constraints, 1usize, 100usize, witness, &domain_factory, &backend);
-
-	let prove_no_issues = proof.is_ok();
-	if !prove_no_issues {
-		println!("{:?}", proof);
-		// Since we have issue on proving, verification is also an issue
-		return (false, false);
-	}
-
-	let out = constraint_system::verify::<
-		OptimalUnderlier,
-		CanonicalTowerFamily,
-		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
-		HasherChallenger<Groestl256>,
-	>(&constraints, 1usize, 100usize, &domain_factory, vec![], proof.unwrap());
-
-	let verify_no_issues = out.is_ok();
-	(prove_no_issues, verify_no_issues)
 }

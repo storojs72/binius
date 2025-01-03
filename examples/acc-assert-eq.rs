@@ -1,14 +1,8 @@
 use binius_circuits::{builder::ConstraintSystemBuilder, unconstrained::variable_u128};
-use binius_core::{
-	constraint_system, constraint_system::ConstraintSystem, fiat_shamir::HasherChallenger,
-	tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex,
-};
-use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b};
-use binius_hal::make_portable_backend;
-use binius_hash::{GroestlDigestCompression, GroestlHasher};
+use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b};
 use binius_macros::arith_expr;
-use binius_math::DefaultEvaluationDomainFactory;
-use groestl_crypto::Groestl256;
+use binius_acc_utils::prove_verify_test;
+
 
 const LOG_SIZE: usize = 10;
 
@@ -266,42 +260,4 @@ fn main() {
 	negative_test(&input);
 	println!("OK");
 	println!("Done");
-}
-
-fn prove_verify_test(
-	witness: MultilinearExtensionIndex<OptimalUnderlier, BinaryField128b>,
-	constraints: ConstraintSystem<BinaryField128b>,
-) -> (bool, bool) {
-	let domain_factory = DefaultEvaluationDomainFactory::default();
-	let backend = make_portable_backend();
-	let proof = constraint_system::prove::<
-		OptimalUnderlier,
-		CanonicalTowerFamily,
-		BinaryField8b,
-		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
-		HasherChallenger<Groestl256>,
-		_,
-	>(&constraints, 1usize, 100usize, witness, &domain_factory, &backend);
-
-	let prove_no_issues = proof.is_ok();
-	if !prove_no_issues {
-		// Since we have issue on proving, verification is also an issue
-		return (false, false);
-	}
-
-	let out = constraint_system::verify::<
-		OptimalUnderlier,
-		CanonicalTowerFamily,
-		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
-		HasherChallenger<Groestl256>,
-	>(&constraints, 1usize, 100usize, &domain_factory, vec![], proof.unwrap());
-
-	let verify_no_issues = out.is_ok();
-	(prove_no_issues, verify_no_issues)
 }

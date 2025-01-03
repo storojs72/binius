@@ -15,6 +15,7 @@ binius_hash = { path = "../crates/hash" }
 binius_macros = { path = "../crates/macros" }
 binius_math = { path = "../crates/math" }
 binius_utils = { path = "../crates/utils" }
+binius_acc_utils = { path = "../crates/acc-utils" }
 bumpalo.workspace = true
 bytesize.workspace = true
 clap = { version = "4.5.20", features = ["derive"] }
@@ -23,6 +24,7 @@ itertools.workspace = true
 rand.workspace = true
 tracing-profile.workspace = true
 tracing.workspace = true
+bytemuck.workspace = true
 
 [[example]]
 name = "groestl_circuit"

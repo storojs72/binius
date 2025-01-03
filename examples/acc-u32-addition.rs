@@ -14,6 +14,7 @@ use binius_hal::make_portable_backend;
 use binius_hash::{GroestlDigestCompression, GroestlHasher};
 use binius_math::DefaultEvaluationDomainFactory;
 use groestl_crypto::Groestl256;
+use binius_acc_utils::prove_verify_test;
 
 const ROWS: usize = 7;
 
@@ -44,47 +45,13 @@ fn u32_addition(x: u32, y: u32) -> u32 {
 	let cs = builder.build().unwrap();
 
 	//print!("cs_builder: ");
-	prove_verify_test(cs, witness).unwrap();
+	prove_verify_test(cs, witness);
 
 	sum_value[0] as u32
 }
 
 fn u32_addition_lookup(x: u32, y: u32) -> u32 {
 	x + y
-}
-
-
-fn prove_verify_test(
-	cs: ConstraintSystem<BinaryField128b>,
-	witness: MultilinearExtensionIndex<OptimalUnderlier, BinaryField128b>,
-) -> Result<()> {
-	let domain_factory = DefaultEvaluationDomainFactory::default();
-	let backend = make_portable_backend();
-
-	let proof = constraint_system::prove::<
-		OptimalUnderlier,
-		CanonicalTowerFamily,
-		BinaryField8b,
-		_,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
-		HasherChallenger<Groestl256>,
-		_,
-	>(&cs, 1usize, 100usize, witness, &domain_factory, &backend)?;
-
-	constraint_system::verify::<
-		OptimalUnderlier,
-		CanonicalTowerFamily,
-		_,
-		GroestlHasher<BinaryField128b>,
-		GroestlDigestCompression<BinaryField8b>,
-		HasherChallenger<Groestl256>,
-	>(&cs, 1usize, 100usize, vec![], proof)?;
-
-	println!("proving test successful");
-
-	Ok(())
 }
 
 fn main() {

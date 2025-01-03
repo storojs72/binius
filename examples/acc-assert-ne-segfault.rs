@@ -4,11 +4,11 @@ use binius_core::{
 };
 use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b};
 use binius_hal::make_portable_backend;
-use binius_hash::{GroestlDigestCompression, GroestlHasher};
 use binius_math::{ArithExpr::Var, DefaultEvaluationDomainFactory};
 use binius_utils::rayon::adjust_thread_pool;
 use groestl_crypto::Groestl256;
 use tracing_profile::init_tracing;
+use binius_hash::compress::Groestl256ByteCompression;
 
 const LOG_SIZE: usize = 10;
 
@@ -201,7 +201,7 @@ fn assert_ne_gadget(
 
 	let one = variable_u128::<_, _, BinaryField1b>(builder, "one", LOG_SIZE, 1u128).unwrap();
 
-	builder.assert_zero_acc([ids, vec![one]].concat(), composition - Var(one));
+	builder.assert_zero([ids, vec![one]].concat(), composition - Var(one));
 }
 
 fn main() {
@@ -230,27 +230,24 @@ fn main() {
 		let domain_factory = DefaultEvaluationDomainFactory::default();
 		let backend = make_portable_backend();
 		let proof = constraint_system::prove::<
-			OptimalUnderlier,
-			CanonicalTowerFamily,
-			BinaryField8b,
-			_,
-			_,
-			GroestlHasher<BinaryField128b>,
-			GroestlDigestCompression<BinaryField8b>,
-			HasherChallenger<Groestl256>,
-			_,
+            OptimalUnderlier,
+            CanonicalTowerFamily,
+            BinaryField8b,
+            _,
+            Groestl256,
+            Groestl256ByteCompression,
+            HasherChallenger<Groestl256>,
+            _,
 		>(&cs, 1usize, 100usize, witness, &domain_factory, &backend)
 		.unwrap();
 
 		constraint_system::verify::<
-			OptimalUnderlier,
-			CanonicalTowerFamily,
-			_,
-			_,
-			GroestlHasher<BinaryField128b>,
-			GroestlDigestCompression<BinaryField8b>,
-			HasherChallenger<Groestl256>,
-		>(&cs, 1usize, 100usize, &domain_factory, vec![], proof)
+            OptimalUnderlier,
+            CanonicalTowerFamily,
+            Groestl256,
+            Groestl256ByteCompression,
+            HasherChallenger<Groestl256>,
+		>(&cs, 1usize, 100usize, vec![], proof)
 		.unwrap();
 		println!("ok");
 	}
