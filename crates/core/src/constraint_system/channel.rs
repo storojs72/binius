@@ -50,6 +50,7 @@
 //! ```
 
 use std::collections::HashMap;
+use std::io::{self, Write, Read};
 
 use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, TowerField};
 
@@ -65,6 +66,83 @@ pub struct Flush {
 	pub direction: FlushDirection,
 	pub count: usize,
 	pub multiplicity: u64,
+}
+
+impl Flush {
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		// oracles
+		writer.write_all((self.oracles.len() as u32).to_le_bytes().as_slice())?;
+		for oracle in self.oracles.iter() {
+			writer.write_all((*oracle as u32).to_le_bytes().as_slice())?;
+		};
+
+		// channel_id
+		writer.write_all((self.channel_id as u32).to_le_bytes().as_slice())?;
+
+		// direction
+		match self.direction {
+			FlushDirection::Push => {
+				writer.write_all(1u32.to_le_bytes().as_slice())?;
+			},
+			FlushDirection::Pull => {
+				writer.write_all(2u32.to_le_bytes().as_slice())?;
+			},
+		}
+
+		// count
+		writer.write_all((self.count as u32).to_le_bytes().as_slice())?;
+
+		Ok(())
+	}
+
+
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		// oracles
+		let mut oracles_len = [0u8; 4];
+		reader.read_exact(&mut oracles_len)?;
+		let oracles_len = u32::from_le_bytes(oracles_len);
+
+		let mut oracles = vec![];
+		for _ in 0..oracles_len {
+			let mut oracle_id_bytes = [0u8; 4];
+			reader.read_exact(&mut oracle_id_bytes)?;
+			let oracle_id = u32::from_le_bytes(oracle_id_bytes) as usize;
+			oracles.push(oracle_id as OracleId);
+		}
+
+		// channel_id
+		let mut channel_id_bytes = [0u8; 4];
+		reader.read_exact(&mut channel_id_bytes)?;
+		let channel_id = u32::from_le_bytes(channel_id_bytes) as usize;
+
+		// direction
+		let mut direction_bytes = [0u8; 4];
+		reader.read_exact(&mut direction_bytes)?;
+		let direction = u32::from_le_bytes(direction_bytes);
+		let direction = match direction {
+			1u32 => {
+				FlushDirection::Push
+			},
+			2u32 => {
+				FlushDirection::Pull
+			},
+			_ => unreachable!(),
+		};
+
+		// count
+		let mut count_bytes = [0u8; 4];
+		reader.read_exact(&mut count_bytes)?;
+		let count = u32::from_le_bytes(count_bytes) as usize;
+
+		Ok(
+			Flush {
+				oracles,
+				channel_id,
+				direction,
+				count,
+			}
+		)
+	}
 }
 
 #[derive(Debug, Clone)]

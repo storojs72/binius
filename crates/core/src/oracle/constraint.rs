@@ -1,12 +1,15 @@
 // Copyright 2024-2025 Irreducible Inc.
 
 use core::iter::IntoIterator;
+use std::io::{self, Write, Read};
 use std::sync::Arc;
+use bytes::BytesMut;
 
 use binius_field::{Field, TowerField};
 use binius_math::{ArithExpr, CompositionPolyOS};
 use binius_utils::bail;
 use itertools::Itertools;
+use binius_utils::serialization::{DeserializeBytes, SerializeBytes};
 
 use super::{Error, MultilinearOracleSet, MultilinearPolyOracle, OracleId};
 
@@ -22,6 +25,23 @@ pub struct Constraint<F: Field> {
 	pub predicate: ConstraintPredicate<F>,
 }
 
+impl<F: Field + SerializeBytes + DeserializeBytes> Constraint<F> {
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		self.composition.write(&mut writer)?;
+		self.predicate.write(&mut writer)?;
+		Ok(())
+	}
+
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		let composition = ArithExpr::<F>::read(&mut reader)?;
+		let predicate = ConstraintPredicate::<F>::read(&mut reader)?;
+		Ok(Constraint{
+			composition,
+			predicate,
+		})
+	}
+}
+
 /// Predicate can either be a sum of values of a composition on the hypercube (sumcheck) or equality to zero
 /// on the hypercube (zerocheck)
 #[derive(Clone, Debug)]
@@ -30,12 +50,110 @@ pub enum ConstraintPredicate<F: Field> {
 	Zero,
 }
 
+impl <F: Field + SerializeBytes + DeserializeBytes> ConstraintPredicate<F> {
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		match self {
+			Self::Sum(sum) => {
+				writer.write_all(1u32.to_le_bytes().as_slice())?;
+
+				let mut buffer = BytesMut::new();
+				sum.serialize(&mut buffer).unwrap();
+
+				writer.write_all(&buffer.to_vec())?;
+			},
+			Self::Zero => {
+				writer.write_all(2u32.to_le_bytes().as_slice())?;
+			},
+		};
+		Ok(())
+	}
+
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		let mut four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let value = u32::from_le_bytes(four_bytes_buffer);
+		let predicate = match value {
+			1u32 => {
+				let buffer = BytesMut::new();
+				let field = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+				Self::Sum(field)
+			},
+			2u32 => {
+				Self::Zero
+			}
+			_ => {
+				unreachable!()
+			}
+		};
+		Ok(predicate)
+	}
+}
+
 /// Constraint set is a group of constraints that operate over the same set of oracle-identified multilinears
 #[derive(Debug, Clone)]
 pub struct ConstraintSet<F: Field> {
 	pub n_vars: usize,
 	pub oracle_ids: Vec<OracleId>,
 	pub constraints: Vec<Constraint<F>>,
+}
+
+impl<F: Field + SerializeBytes + DeserializeBytes> ConstraintSet<F> {
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		// n_vars
+		writer.write_all((self.n_vars as u32).to_le_bytes().as_slice())?;
+
+		// oracle_ids
+		writer.write_all((self.oracle_ids.len() as u32).to_le_bytes().as_slice())?;
+		for oracle in self.oracle_ids.iter() {
+			writer.write_all((*oracle as u32).to_le_bytes().as_slice())?;
+		};
+
+		// constraints
+		writer.write_all((self.constraints.len() as u32).to_le_bytes().as_slice())?;
+		for constraint in self.constraints.iter() {
+			constraint.write(&mut writer)?;
+		}
+
+		Ok(())
+	}
+
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		// n_vars
+		let mut n_vars_bytes = [0u8; 4];
+		reader.read_exact(&mut n_vars_bytes)?;
+		let n_vars = u32::from_le_bytes(n_vars_bytes) as usize;
+
+		// oracle_ids
+		let mut oracle_ids_len_bytes = [0u8; 4];
+		reader.read_exact(&mut oracle_ids_len_bytes)?;
+		let oracle_ids_len = u32::from_le_bytes(oracle_ids_len_bytes) as usize;
+
+		let mut oracle_ids = vec![];
+		for _ in 0..oracle_ids_len {
+			let mut oracle_id_bytes = [0u8; 4];
+			reader.read_exact(&mut oracle_id_bytes)?;
+			let oracle_id = u32::from_le_bytes(oracle_id_bytes) as usize;
+			oracle_ids.push(oracle_id as OracleId);
+		}
+
+		// constraints
+		let mut constraints_len_bytes = [0u8; 4];
+		reader.read_exact(&mut constraints_len_bytes)?;
+		let constraints_len = u32::from_le_bytes(constraints_len_bytes) as usize;
+
+		let mut constraints = vec![];
+		for _ in 0..constraints_len {
+			constraints.push(Constraint::<F>::read(&mut reader)?);
+		}
+
+		Ok(
+			ConstraintSet {
+				n_vars,
+				oracle_ids,
+				constraints,
+			}
+		)
+	}
 }
 
 // A deferred constraint constructor that instantiates index composition after the superset of oracles is known
@@ -280,6 +398,7 @@ fn positions<T: Eq>(subset: &[T], superset: &[T]) -> Option<Vec<usize>> {
 		.collect()
 }
 
+#[allow(dead_code)]
 #[allow(clippy::type_complexity)]
 fn thunk_acc<F: Field>(
 	oracle_ids: Vec<OracleId>,
