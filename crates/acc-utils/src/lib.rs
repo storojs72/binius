@@ -2,7 +2,7 @@ use binius_core::{
     constraint_system, constraint_system::ConstraintSystem, fiat_shamir::HasherChallenger,
     tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex,
 };
-use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField8b};
+use binius_field::{arch::OptimalUnderlier, BinaryField128b};
 use binius_hal::make_portable_backend;
 use binius_math::DefaultEvaluationDomainFactory;
 use groestl_crypto::Groestl256;
@@ -23,7 +23,6 @@ pub fn prove_verify_test(
     let proof = constraint_system::prove::<
         OptimalUnderlier,
         CanonicalTowerFamily,
-        BinaryField8b,
         _,
         Groestl256,
         Groestl256ByteCompression,

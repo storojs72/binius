@@ -4,7 +4,7 @@ use binius_circuits::{builder::ConstraintSystemBuilder, unconstrained::variable_
 use binius_core::{
 	constraint_system, fiat_shamir::HasherChallenger, tower::CanonicalTowerFamily
 };
-use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b};
+use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b};
 use binius_hal::make_portable_backend;
 use binius_math::DefaultEvaluationDomainFactory;
 use groestl_crypto::Groestl256;
@@ -144,7 +144,7 @@ const MASK: [u128; 128] = [
 ];
 
 const ROWS: usize = 10;
-//type VarField = BinaryField1b;
+type VarField = BinaryField1b;
 type ConstraintSystemField = BinaryField128b;
 
 fn assert_eq_gadget(
@@ -171,7 +171,7 @@ fn assert_eq_gadget(
 					value = set_bit(value, bit_index);
 				}
 			}
-			let value_id = variable_u128::<_, _, BinaryField1b>(
+			let value_id = variable_u128::<_, _, VarField>(
 				builder,
 				format!("packed_value::{}", chunk_index),
 				ROWS,
@@ -206,7 +206,6 @@ fn main() {
 	let proof = constraint_system::prove::<
 		OptimalUnderlier,
 		CanonicalTowerFamily,
-		BinaryField8b,
 		_,
 		Groestl256,
 		Groestl256ByteCompression,
@@ -227,8 +226,6 @@ fn main() {
 	let mut v = vec![];
 	proof.write(&mut v).unwrap();
 	let proof_deserialized = Proof::read(v.as_slice()).unwrap();
-
-	bincode::serialize(&proof).unwrap();
 
 	constraint_system::verify::<
 		OptimalUnderlier,
