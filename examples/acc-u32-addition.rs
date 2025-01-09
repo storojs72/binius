@@ -1,19 +1,7 @@
-use anyhow::Result;
 use binius_circuits::{arithmetic, builder::ConstraintSystemBuilder, unconstrained::variable_u128};
-use binius_core::{
-	constraint_system,
-	constraint_system::ConstraintSystem,
-	fiat_shamir::HasherChallenger,
-	tower::CanonicalTowerFamily,
-	witness::MultilinearExtensionIndex,
-};
 use binius_field::{
-	arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b,
+	arch::OptimalUnderlier, BinaryField128b, BinaryField1b,
 };
-use binius_hal::make_portable_backend;
-use binius_hash::{GroestlDigestCompression, GroestlHasher};
-use binius_math::DefaultEvaluationDomainFactory;
-use groestl_crypto::Groestl256;
 use binius_acc_utils::prove_verify_test;
 
 const ROWS: usize = 7;
@@ -40,12 +28,10 @@ fn u32_addition(x: u32, y: u32) -> u32 {
 	assert!(sum_value.len() > 0);
 
 	let witness = builder.take_witness().unwrap();
-	//println!("witness: {:?}", witness);
 
 	let cs = builder.build().unwrap();
 
-	//print!("cs_builder: ");
-	prove_verify_test(cs, witness);
+	prove_verify_test(witness, cs);
 
 	sum_value[0] as u32
 }

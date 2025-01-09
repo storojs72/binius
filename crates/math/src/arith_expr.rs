@@ -6,10 +6,14 @@ use std::{
 	iter::{Product, Sum},
 	ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign},
 };
+use std::io::{self, Write, Read};
 
 use binius_field::Field;
+use binius_utils::serialization::{ SerializeBytes, DeserializeBytes };
 
 use super::error::Error;
+
+use bytes::BytesMut;
 
 /// Arithmetic expressions that can be evaluated symbolically.
 ///
@@ -34,6 +38,124 @@ impl<F: Field + Display> Display for ArithExpr<F> {
 			Self::Mul(x, y) => write!(f, "({} * {})", &**x, &**y),
 			Self::Pow(x, p) => write!(f, "({})^{p}", &**x),
 		}
+	}
+}
+
+impl <F: Field + SerializeBytes + DeserializeBytes> ArithExpr<F> {
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		match self {
+			Self::Const(constant) => {
+				writer.write_all(1u32.to_le_bytes().as_slice())?;
+
+				let mut buffer = BytesMut::new();
+				constant.serialize(&mut buffer).unwrap();
+				let buffer = buffer.to_vec();
+				writer.write_all(buffer.len().to_le_bytes().as_slice())?;
+				writer.write_all(&buffer)?;
+			}
+			Self::Var(variable) => {
+				writer.write_all(2u32.to_le_bytes().as_slice())?;
+
+				writer.write_all((*variable as u32).to_le_bytes().as_slice())?;
+			}
+			Self::Add(addition_left, addition_right) => {
+				writer.write_all(3u32.to_le_bytes().as_slice())?;
+
+				let mut buffer = vec![];
+				addition_left.write(&mut buffer)?;
+				addition_right.write(&mut buffer)?;
+
+				let buffer_len = buffer.len() as u32;
+				writer.write_all(buffer_len.to_le_bytes().as_slice())?;
+				writer.write_all(buffer.as_slice())?;
+			}
+			Self::Mul(multiplication_left, multiplication_right) => {
+				writer.write_all(4u32.to_le_bytes().as_slice())?;
+
+				let mut buffer = vec![];
+				multiplication_left.write(&mut buffer)?;
+				multiplication_right.write(&mut buffer)?;
+
+				let buffer_len = buffer.len() as u32;
+				writer.write_all(buffer_len.to_le_bytes().as_slice())?;
+				writer.write_all(buffer.as_slice())?;
+			}
+			Self::Pow(power, exponent) => {
+				writer.write_all(5u32.to_le_bytes().as_slice())?;
+
+				let mut buffer = vec![];
+				power.write(&mut buffer)?;
+				buffer.write_all(&exponent.to_le_bytes().as_slice())?;
+
+				let buffer_len = buffer.len() as u32;
+				writer.write_all(buffer_len.to_le_bytes().as_slice())?;
+				writer.write_all(buffer.as_slice())?;
+			}
+		}
+		Ok(())
+	}
+
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		let mut four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let value = u32::from_le_bytes(four_bytes_buffer);
+		let arith_expr = match value {
+			1u32 => {
+				let mut four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer);
+
+				let mut buffer = BytesMut::zeroed(len as usize);
+				reader.read_exact(&mut buffer)?;
+
+				let field = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+				Self::Const(field)
+			},
+			2u32 => {
+				let mut four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let variable = u32::from_le_bytes(four_bytes_buffer);
+				Self::Var(variable as usize)
+			},
+			3u32 => {
+				let mut four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer);
+				let mut buffer = vec![0u8; len as usize];
+				reader.read_exact(&mut buffer)?;
+
+				let addition_left = Self::read(buffer.as_slice())?;
+				let addition_right = Self::read(buffer.as_slice())?;
+				Self::Add(Box::new(addition_left), Box::new(addition_right))
+			},
+			4u32 => {
+				let mut four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer);
+				let mut buffer = vec![0u8; len as usize];
+				reader.read_exact(&mut buffer)?;
+
+				let multiplication_left = Self::read(buffer.as_slice())?;
+				let multiplication_right = Self::read(buffer.as_slice())?;
+				Self::Mul(Box::new(multiplication_left), Box::new(multiplication_right))
+			},
+			5u32 => {
+				let mut four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer);
+				let mut buffer = vec![0u8; len as usize];
+				reader.read_exact(&mut buffer)?;
+
+				let power = Self::read(buffer.as_slice())?;
+				let mut eight_bytes_buffer = [0u8; 8];
+				reader.read_exact(&mut eight_bytes_buffer)?;
+				let exponent = u64::from_le_bytes(eight_bytes_buffer);
+				Self::Pow(Box::new(power), exponent)
+			},
+			_ => unreachable!("ArithExpr read unreachable"),
+		};
+
+		Ok(arith_expr)
 	}
 }
 

@@ -12,6 +12,12 @@ pub fn prove_verify_test(
     witness: MultilinearExtensionIndex<OptimalUnderlier, BinaryField128b>,
     constraints: ConstraintSystem<BinaryField128b>,
 ) -> (bool, bool) {
+
+    let mut buf = vec![];
+    constraints.write(&mut buf).expect("constraints serialization issue");
+    let constraints = ConstraintSystem::<BinaryField128b>::read(buf.as_slice()).expect("constraints deserialization issue");
+    println!("serialization is OK");
+
     let domain_factory = DefaultEvaluationDomainFactory::default();
     let backend = make_portable_backend();
     let proof = constraint_system::prove::<

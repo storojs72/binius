@@ -1,10 +1,13 @@
 // Copyright 2024-2025 Irreducible Inc.
 
 use std::{array, fmt::Debug, sync::Arc};
+use std::io::{self, Write, Read};
+use bytes::BytesMut;
 
 use binius_field::{Field, TowerField};
 use binius_utils::bail;
 use getset::{CopyGetters, Getters};
+use binius_utils::serialization::{DeserializeBytes, SerializeBytes};
 
 use crate::{
 	oracle::{CompositePolyOracle, Error},
@@ -260,6 +263,32 @@ pub struct MultilinearOracleSet<F: TowerField> {
 	oracles: Vec<Arc<MultilinearPolyOracle<F>>>,
 }
 
+impl<F: TowerField + SerializeBytes + DeserializeBytes> MultilinearOracleSet<F> {
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		writer.write_all((self.oracles.len() as u32).to_le_bytes().as_slice())?;
+		for oracle in self.oracles.clone().into_iter() {
+			Arc::unwrap_or_clone(oracle).write(&mut writer)?;
+		}
+		Ok(())
+	}
+
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		let mut four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let len = u32::from_le_bytes(four_bytes_buffer);
+
+		let mut oracles = vec![];
+		for _ in 0..len {
+			let oracle = MultilinearPolyOracle::<F>::read(&mut reader)?;
+			oracles.push(Arc::new(oracle));
+		}
+
+		Ok(MultilinearOracleSet{
+			oracles
+		})
+	}
+}
+
 impl<F: TowerField> MultilinearOracleSet<F> {
 	pub fn new() -> Self {
 		Self {
@@ -460,6 +489,324 @@ pub enum MultilinearPolyOracle<F: Field> {
 	},
 }
 
+impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		fn read_name<R: Read>(mut reader: R) -> io::Result<Option<String>> {
+			let mut four_bytes_buffer = [0u8; 4];
+			reader.read_exact(&mut four_bytes_buffer)?;
+			let identifier = u32::from_le_bytes(four_bytes_buffer);
+			let output = if identifier == 1u32 {
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer);
+				let mut buffer = vec![0u8; len as usize];
+				reader.read_exact(&mut buffer)?;
+				let output = String::from_utf8(buffer).unwrap();
+				Some(output)
+			} else {
+				None
+			};
+			Ok(output)
+		}
+
+		let mut four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let identifier = u32::from_le_bytes(four_bytes_buffer);
+
+		let oracle = match identifier {
+			1u32 => {
+				// Transparent
+				todo!()
+			},
+			2u32 => {
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let oracle_id = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let n_vars = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let tower_level = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				let name = read_name(&mut reader)?;
+
+				MultilinearPolyOracle::Committed{
+					oracle_id,
+					n_vars,
+					tower_level,
+					name
+				}
+			},
+			3u32 => {
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let id = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer) as usize;
+				let mut buffer = vec![0u8; len];
+				reader.read_exact(&mut buffer)?;
+				let inner = Self::read(buffer.as_slice())?;
+
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let log_count = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				let name = read_name(&mut reader)?;
+
+				MultilinearPolyOracle::Repeating {
+					id,
+					inner: Arc::new(inner),
+					log_count,
+					name
+				}
+			},
+			4u32 => {
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let id = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer) as usize;
+				let mut buffer = vec![0u8; len];
+				reader.read_exact(&mut buffer)?;
+				let projected = Projected::<F>::read(buffer.as_slice())?;
+
+				let name = read_name(&mut reader)?;
+				MultilinearPolyOracle::Projected {
+					id,
+					projected,
+					name
+				}
+			},
+			5u32 => {
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let id = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer) as usize;
+				let mut buffer = vec![0u8; len];
+				reader.read_exact(&mut buffer)?;
+				let shifted = Shifted::<F>::read(buffer.as_slice())?;
+
+				let name = read_name(&mut reader)?;
+				MultilinearPolyOracle::Shifted {
+					id,
+					shifted,
+					name
+				}
+			},
+			6u32 => {
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let id = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer) as usize;
+				let mut buffer = vec![0u8; len];
+				reader.read_exact(&mut buffer)?;
+				let packed = Packed::<F>::read(buffer.as_slice())?;
+
+				let name = read_name(&mut reader)?;
+				MultilinearPolyOracle::Packed {
+					id,
+					packed,
+					name
+				}
+			},
+			7u32 => {
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let id = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer) as usize;
+				let mut buffer = vec![0u8; len];
+				reader.read_exact(&mut buffer)?;
+				let linear_combination = LinearCombination::<F>::read(buffer.as_slice())?;
+
+				let name = read_name(&mut reader)?;
+				MultilinearPolyOracle::LinearCombination {
+					id,
+					linear_combination,
+					name
+				}
+			},
+			8u32 => {
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let id = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let len = u32::from_le_bytes(four_bytes_buffer) as usize;
+				let mut buffer = vec![0u8; len];
+				reader.read_exact(&mut buffer)?;
+				let inner = Arc::new(Self::read(buffer.as_slice())?);
+
+				four_bytes_buffer = [0u8; 4];
+				reader.read_exact(&mut four_bytes_buffer)?;
+				let n_vars = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+				let name = read_name(&mut reader)?;
+
+				MultilinearPolyOracle::ZeroPadded{
+					id,
+					inner,
+					n_vars,
+					name
+				}
+			},
+			_ => {
+				unreachable!("MultilinearPolyOracle read unreachable");
+			},
+		};
+
+		Ok(oracle)
+	}
+
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		fn write_name<W: Write>(mut writer: W, name: &Option<String>) -> io::Result<()> {
+			if name.is_some() {
+				writer.write_all(1u32.to_le_bytes().as_slice())?;
+				let bytes = name.as_ref().unwrap().as_bytes();
+				writer.write_all((bytes.len() as u32).to_le_bytes().as_slice())?;
+				writer.write_all(bytes)?;
+			} else {
+				writer.write_all(0u32.to_le_bytes().as_slice())?;
+			}
+			Ok(())
+		}
+
+		match self {
+			MultilinearPolyOracle::Transparent {
+				id: _,
+				inner: _,
+				name: _,
+			} => {
+				//writer.write_all(1u32.to_le_bytes().as_slice())?;
+				//writer.write_all(id.to_le_bytes().as_slice())?;
+
+				// How to serialize TransparentPolyOracle?
+
+				//write_name(&mut writer, name)?;
+				todo!();
+			}
+			MultilinearPolyOracle::Committed {
+				oracle_id,
+				n_vars,
+				tower_level,
+				name
+			} => {
+				writer.write_all(2u32.to_le_bytes().as_slice())?;
+				writer.write_all((*oracle_id as u32).to_le_bytes().as_slice())?;
+				writer.write_all((*n_vars as u32).to_le_bytes().as_slice())?;
+				writer.write_all((*tower_level as u32).to_le_bytes().as_slice())?;
+				write_name(&mut writer, name)?;
+			},
+			MultilinearPolyOracle::Repeating {
+				id,
+				inner,
+				log_count,
+				name,
+			} => {
+				writer.write_all(3u32.to_le_bytes().as_slice())?;
+				writer.write_all((*id as u32).to_le_bytes().as_slice())?;
+
+				let mut buffer = vec![];
+				inner.write(&mut buffer)?;
+				writer.write_all((buffer.len() as u32).to_le_bytes().as_slice())?;
+				writer.write_all(buffer.as_slice())?;
+
+				writer.write_all((*log_count as u32).to_le_bytes().as_slice())?;
+				write_name(&mut writer, name)?;
+			},
+			MultilinearPolyOracle::Projected {
+				id,
+				projected,
+				name,
+			} => {
+				writer.write_all(4u32.to_le_bytes().as_slice())?;
+				writer.write_all(id.to_le_bytes().as_slice())?;
+
+				let mut buffer = vec![];
+				projected.write(&mut buffer)?;
+				writer.write_all(buffer.as_slice())?;
+
+				write_name(&mut writer, name)?;
+			},
+			MultilinearPolyOracle::Shifted {
+				id,
+				shifted,
+				name,
+			} => {
+				writer.write_all(5u32.to_le_bytes().as_slice())?;
+				writer.write_all(id.to_le_bytes().as_slice())?;
+
+				let mut buffer = vec![];
+				shifted.write(&mut buffer)?;
+				writer.write_all(buffer.as_slice())?;
+
+				write_name(&mut writer, name)?;
+			},
+			MultilinearPolyOracle::Packed {
+				id,
+				packed,
+				name,
+			} => {
+				writer.write_all(6u32.to_le_bytes().as_slice())?;
+				writer.write_all(id.to_le_bytes().as_slice())?;
+
+				let mut buffer = vec![];
+				packed.write(&mut buffer)?;
+				writer.write_all(buffer.as_slice())?;
+
+				write_name(&mut writer, name)?;
+			},
+			MultilinearPolyOracle::LinearCombination {
+				id,
+				linear_combination,
+				name,
+			} => {
+				writer.write_all(7u32.to_le_bytes().as_slice())?;
+				writer.write_all(id.to_le_bytes().as_slice())?;
+
+				let mut buffer = vec![];
+				linear_combination.write(&mut buffer)?;
+				writer.write_all(buffer.as_slice())?;
+
+				write_name(&mut writer, name)?;
+			},
+			MultilinearPolyOracle::ZeroPadded {
+				id,
+				inner,
+				n_vars,
+				name,
+			} => {
+				writer.write_all(8u32.to_le_bytes().as_slice())?;
+				writer.write_all(id.to_le_bytes().as_slice())?;
+
+				let mut buffer = vec![];
+				inner.write(&mut buffer)?;
+				writer.write_all(buffer.as_slice())?;
+
+				writer.write_all(n_vars.to_le_bytes().as_slice())?;
+				write_name(&mut writer, name)?;
+			},
+		}
+		Ok(())
+	}
+}
+
 /// A transparent multilinear polynomial oracle.
 ///
 /// See the [`MultilinearPolyOracle`] documentation for context.
@@ -534,6 +881,76 @@ impl<F: Field> Projected<F> {
 	}
 }
 
+impl<F: Field + SerializeBytes + DeserializeBytes> Projected<F> {
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		// inner
+		Arc::unwrap_or_clone(self.inner.clone()).write(&mut writer)?;
+
+		// values
+		let values_len = self.values.len();
+		writer.write_all(values_len.to_le_bytes().as_slice())?;
+		for value in self.values.iter() {
+			let mut buffer = BytesMut::new();
+			value.serialize(&mut buffer).unwrap();
+			let buffer = buffer.to_vec();
+			writer.write_all(buffer.len().to_le_bytes().as_slice())?;
+			writer.write_all(&buffer)?;
+		}
+
+		// projection_variant
+		match self.projection_variant {
+			ProjectionVariant::FirstVars => {
+				writer.write_all(1u32.to_le_bytes().as_slice())?;
+			},
+			ProjectionVariant::LastVars => {
+				writer.write_all(2u32.to_le_bytes().as_slice())?;
+			},
+		}
+
+		Ok(())
+	}
+
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		let inner = Arc::new(MultilinearPolyOracle::read(&mut reader)?);
+
+		let mut four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let len = u32::from_le_bytes(four_bytes_buffer);
+		let mut values = vec![];
+		for _ in 0..len {
+			four_bytes_buffer = [0u8; 4];
+			reader.read_exact(&mut four_bytes_buffer)?;
+			let len = u32::from_le_bytes(four_bytes_buffer);
+
+			let mut buffer = BytesMut::zeroed(len as usize);
+			reader.read_exact(&mut buffer)?;
+
+			let val = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+			values.push(val);
+		}
+
+		four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let value = u32::from_le_bytes(four_bytes_buffer);
+
+		let projection_variant = match value {
+			1u32 => {
+				ProjectionVariant::FirstVars
+			},
+			2u32 => {
+				ProjectionVariant::LastVars
+			},
+			_ => unreachable!("Projected read unreachable"),
+		};
+
+		Ok(Projected{
+			inner,
+			values,
+			projection_variant,
+		})
+	}
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ShiftVariant {
 	CircularLeft,
@@ -550,6 +967,67 @@ pub struct Shifted<F: Field> {
 	block_size: usize,
 	#[get_copy = "pub"]
 	shift_variant: ShiftVariant,
+}
+
+impl<F: Field + SerializeBytes + DeserializeBytes> Shifted<F> {
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		// inner
+		Arc::unwrap_or_clone(self.inner.clone()).write(&mut writer)?;
+
+		// shift_offset
+		writer.write_all((self.shift_offset as u32).to_le_bytes().as_slice())?;
+
+		// block_size
+		writer.write_all((self.block_size as u32).to_le_bytes().as_slice())?;
+
+		// shift_variant
+		match self.shift_variant {
+			ShiftVariant::CircularLeft => {
+				writer.write_all(1u32.to_le_bytes().as_slice())?;
+			},
+			ShiftVariant::LogicalLeft => {
+				writer.write_all(2u32.to_le_bytes().as_slice())?;
+			},
+			ShiftVariant::LogicalRight => {
+				writer.write_all(3u32.to_le_bytes().as_slice())?;
+			},
+		}
+
+		Ok(())
+	}
+
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		// inner
+		let inner = Arc::new(MultilinearPolyOracle::read(&mut reader)?);
+
+		// shift_offset
+		let mut four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let shift_offset = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+		// block_size
+		four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let block_size = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+		// shift_variant
+		four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let shift_variant = u32::from_le_bytes(four_bytes_buffer);
+		let shift_variant = match shift_variant {
+			1u32 => { ShiftVariant::CircularLeft },
+			2u32 => { ShiftVariant::LogicalLeft},
+			3u32 => { ShiftVariant::LogicalRight},
+			_ => unreachable!("Shifted read unreachable"),
+		};
+
+		Ok(Shifted {
+			inner,
+			shift_offset,
+			block_size,
+			shift_variant
+		})
+	}
 }
 
 impl<F: Field> Shifted<F> {
@@ -599,6 +1077,33 @@ pub struct Packed<F: Field> {
 	log_degree: usize,
 }
 
+impl<F: Field + SerializeBytes + DeserializeBytes> Packed<F> {
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		// inner
+		Arc::unwrap_or_clone(self.inner.clone()).write(&mut writer)?;
+
+		// log_degree
+		writer.write_all(self.log_degree.to_le_bytes().as_slice())?;
+
+		Ok(())
+	}
+
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		// inner
+		let inner = Arc::new(MultilinearPolyOracle::read(&mut reader)?);
+
+		// log_degree
+		let mut four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let log_degree = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+		Ok(Packed {
+			inner,
+			log_degree,
+		})
+	}
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Getters, CopyGetters)]
 pub struct LinearCombination<F: Field> {
 	#[get_copy = "pub"]
@@ -606,6 +1111,76 @@ pub struct LinearCombination<F: Field> {
 	#[get_copy = "pub"]
 	offset: F,
 	inner: Vec<(Arc<MultilinearPolyOracle<F>>, F)>,
+}
+
+impl<F: Field + SerializeBytes + DeserializeBytes> LinearCombination<F> {
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
+		// n_vars
+		writer.write_all(self.n_vars.to_le_bytes().as_slice())?;
+
+		// offset
+		let mut buffer = BytesMut::new();
+		self.offset.serialize(&mut buffer).unwrap();
+		let buffer = buffer.to_vec();
+		writer.write_all(buffer.len().to_le_bytes().as_slice())?;
+		writer.write_all(&buffer)?;
+
+		// inner
+		writer.write_all((self.inner.len() as u32).to_le_bytes().as_slice())?;
+
+		for (poly, field_element) in self.inner.iter() {
+			Arc::unwrap_or_clone(poly.clone()).write(&mut writer)?;
+			let mut buffer = BytesMut::new();
+			field_element.serialize(&mut buffer).unwrap();
+			writer.write_all(buffer.len().to_le_bytes().as_slice())?;
+			writer.write_all(&buffer.to_vec())?;
+		}
+
+		Ok(())
+	}
+
+	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
+		// n_vars
+		let mut four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let n_vars = u32::from_le_bytes(four_bytes_buffer) as usize;
+
+		// offset
+		four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let len = u32::from_le_bytes(four_bytes_buffer);
+
+		let mut buffer = BytesMut::zeroed(len as usize);
+		reader.read_exact(&mut buffer)?;
+
+		let offset = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+
+		// inner
+		four_bytes_buffer = [0u8; 4];
+		reader.read_exact(&mut four_bytes_buffer)?;
+		let inner_len = u32::from_le_bytes(four_bytes_buffer);
+		let mut inner = vec![];
+		for _ in 0..inner_len {
+			let poly_oracle = Arc::new(MultilinearPolyOracle::read(&mut reader)?);
+
+			let mut four_bytes_buffer = [0u8; 4];
+			reader.read_exact(&mut four_bytes_buffer)?;
+			let len = u32::from_le_bytes(four_bytes_buffer);
+
+			let mut buffer = BytesMut::zeroed(len as usize);
+			reader.read_exact(&mut buffer)?;
+
+			let field = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+
+			inner.push((poly_oracle, field));
+		}
+
+		Ok(LinearCombination{
+			n_vars,
+			offset,
+			inner,
+		})
+	}
 }
 
 impl<F: Field> LinearCombination<F> {

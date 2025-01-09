@@ -1,17 +1,16 @@
-//#![feature(generic_const_exprs)]
+//#![recursion_limit = "4096"]
 
 use binius_circuits::{builder::ConstraintSystemBuilder, unconstrained::variable_u128};
 use binius_core::{
-	constraint_system, constraint_system::ConstraintSystem, fiat_shamir::HasherChallenger,
-	oracle::OracleId, tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex,
+	constraint_system, fiat_shamir::HasherChallenger, tower::CanonicalTowerFamily
 };
-use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField16b, BinaryField1b, BinaryField32b, BinaryField64b, BinaryField8b};
+use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b};
 use binius_hal::make_portable_backend;
-use binius_hash::{GroestlDigestCompression, GroestlHasher};
-use binius_math::{ArithExpr::Var, DefaultEvaluationDomainFactory};
+use binius_math::DefaultEvaluationDomainFactory;
 use groestl_crypto::Groestl256;
-use tracing_profile::init_tracing;
-use binius_circuits::unconstrained::variable_u32;
+use binius_core::constraint_system::{ConstraintSystem, Proof};
+use binius_hash::compress::Groestl256ByteCompression;
+use binius_macros::arith_expr;
 
 const MASK: [u128; 128] = [
 	0b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001,
@@ -145,140 +144,97 @@ const MASK: [u128; 128] = [
 ];
 
 const ROWS: usize = 10;
-type VarField = BinaryField1b;
+//type VarField = BinaryField1b;
 type ConstraintSystemField = BinaryField128b;
 
-type ProveField = BinaryField8b;
-type CompressionField = BinaryField8b;
-
-fn assert_ne_gadget(
-	builder: &mut ConstraintSystemBuilder<OptimalUnderlier, ConstraintSystemField>,
+fn assert_eq_gadget(
+	builder: &mut ConstraintSystemBuilder<OptimalUnderlier, BinaryField128b>,
 	input: &[bool],
 ) {
+	assert!(input.len() > 0);
+
 	fn set_bit(a: u128, index: usize) -> u128 {
 		assert!(index < 128);
 		let out = a | MASK[index];
 		out
 	}
 
-	assert!(input.len() > 0);
-
-	let ids = input
+	// Split input into 128-bit chunks, instantiate variable by setting its bits from the input and finally constraint it to be zero
+	input
 		.chunks(128)
 		.into_iter()
 		.enumerate()
-		.map(|(chunk_index, chunk)| {
+		.for_each(|(chunk_index, chunk)| {
 			let mut value = 0u128;
 			for (bit_index, one) in chunk.iter().enumerate() {
 				if *one {
 					value = set_bit(value, bit_index);
 				}
 			}
-			let id = if value != 0u128 {
-				variable_u128::<_, _, VarField>(
-					builder,
-					format!("packed_value::{}", chunk_index),
-					ROWS,
-					1u128,
-				)
-					.unwrap()
-			} else {
-				variable_u128::<_, _, VarField>(
-					builder,
-					format!("packed_value::{}", chunk_index),
-					ROWS,
-					0u128,
-				)
-					.unwrap()
-			};
-			id
-		})
-		.collect::<Vec<OracleId>>();
-
-	// Constraint:
-	//
-	// NOT (x_0 OR x_1 OR x_2 OR ... OR x_n) == 0, where
-	//
-	// NOT x = x + 1 (considering X as a bit),
-	// x_0 OR x_1 = (x_0 XOR x_1) XOR (x_0 AND x_1).
-
-	let mut composition = Var(ids[0].clone());
-	for id in ids.iter() {
-		composition = composition.clone() + Var(*id) + composition.clone() * Var(*id);
-	}
-
-	let one = variable_u128::<_, _, VarField>(builder, "one", ROWS, 1u128).unwrap();
-
-	builder.assert_zero_acc([ids, vec![one]].concat(), composition - Var(one));
+			let value_id = variable_u128::<_, _, BinaryField1b>(
+				builder,
+				format!("packed_value::{}", chunk_index),
+				ROWS,
+				value,
+			)
+				.unwrap();
+			builder.assert_zero([value_id], arith_expr!([val] = val - 0).convert_field());
+		});
 }
 
 fn main() {
-	let _guard = init_tracing().expect("failed to initialize tracing");
-
-	// Positive test (at least one non-zero bit in the input)
-	let mut input = [false; 128];
-	input[127] = true;
+	let input = [false; 256];
 
 	let allocator = bumpalo::Bump::new();
 	let mut builder =
 		ConstraintSystemBuilder::<OptimalUnderlier, ConstraintSystemField>::new_with_witness(&allocator);
 
-	assert_ne_gadget(&mut builder, &input);
+	assert_eq_gadget(&mut builder, &input);
 
 	let witness = builder.take_witness().unwrap();
 
-	println!("witness: {:?}", witness);
-
-	//println!();
-
-	//println!("witness len: {:?}", witness.entries.len());
-
-	println!();
-
 	let cs = builder.build().unwrap();
 
-	println!("cs: {:?}", cs);
+	let mut v = vec![];
+	cs.write(&mut v).unwrap();
 
-	let (prove_no_issues, verify_no_issues) = prove_verify_test(witness, cs);
-	assert!(prove_no_issues);
-	assert!(verify_no_issues);
-	println!("ok");
-}
+	let cs_deserialized = ConstraintSystem::<ConstraintSystemField>::read(&v[..]).expect("couldn't read cs from bytes");
 
-fn prove_verify_test(
-	witness: MultilinearExtensionIndex<OptimalUnderlier, ConstraintSystemField>,
-	constraints: ConstraintSystem<ConstraintSystemField>,
-) -> (bool, bool) {
 	let domain_factory = DefaultEvaluationDomainFactory::default();
 	let backend = make_portable_backend();
+
 	let proof = constraint_system::prove::<
 		OptimalUnderlier,
 		CanonicalTowerFamily,
-		ProveField,
+		BinaryField8b,
 		_,
-		_,
-		GroestlHasher<ConstraintSystemField>,
-		GroestlDigestCompression<CompressionField>,
+		Groestl256,
+		Groestl256ByteCompression,
 		HasherChallenger<Groestl256>,
 		_,
-	>(&constraints, 1usize, 100usize, witness, &domain_factory, &backend);
+	>(&cs_deserialized, 1usize, 100usize, witness, &domain_factory, &backend).unwrap();
 
-	let prove_no_issues = proof.is_ok();
-	if !prove_no_issues {
-		println!("{:?}", proof);
-		// Since we have issue on proving, verification is also an issue
-		return (false, false);
-	}
-
-	let out = constraint_system::verify::<
+	constraint_system::verify::<
 		OptimalUnderlier,
 		CanonicalTowerFamily,
-		_,
-		GroestlHasher<ConstraintSystemField>,
-		GroestlDigestCompression<CompressionField>,
+		Groestl256,
+		Groestl256ByteCompression,
 		HasherChallenger<Groestl256>,
-	>(&constraints, 1usize, 100usize, vec![], proof.unwrap());
+	>(&cs_deserialized, 1usize, 100usize, vec![], proof.clone()).unwrap();
 
-	let verify_no_issues = out.is_ok();
-	(prove_no_issues, verify_no_issues)
+
+	// verify over deserialized proof
+	let mut v = vec![];
+	proof.write(&mut v).unwrap();
+	let proof_deserialized = Proof::read(v.as_slice()).unwrap();
+
+	bincode::serialize(&proof).unwrap();
+
+	constraint_system::verify::<
+		OptimalUnderlier,
+		CanonicalTowerFamily,
+		Groestl256,
+		Groestl256ByteCompression,
+		HasherChallenger<Groestl256>,
+	>(&cs_deserialized, 1usize, 100usize, vec![], proof_deserialized).unwrap();
 }
