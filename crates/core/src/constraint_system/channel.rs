@@ -92,6 +92,9 @@ impl Flush {
 		// count
 		writer.write_all((self.count as u32).to_le_bytes().as_slice())?;
 
+		// multiplicity
+		writer.write_all(self.multiplicity.to_le_bytes().as_slice())?;
+
 		Ok(())
 	}
 
@@ -134,12 +137,18 @@ impl Flush {
 		reader.read_exact(&mut count_bytes)?;
 		let count = u32::from_le_bytes(count_bytes) as usize;
 
+		// multiplicity
+		let mut multiplicity_bytes = [0u8; 8];
+		reader.read_exact(&mut multiplicity_bytes)?;
+		let multiplicity = u64::from_le_bytes(multiplicity_bytes);
+
 		Ok(
 			Flush {
 				oracles,
 				channel_id,
 				direction,
 				count,
+				multiplicity,
 			}
 		)
 	}
