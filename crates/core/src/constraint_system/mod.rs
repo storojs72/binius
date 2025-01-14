@@ -32,7 +32,7 @@ pub struct ConstraintSystem<F: TowerField> {
 	pub max_channel_id: ChannelId,
 }
 
-impl<F: TowerField + SerializeBytes + DeserializeBytes> ConstraintSystem<F> {
+impl<F: TowerField> ConstraintSystem<F> {
 	pub fn no_base_constraints(self) -> ConstraintSystem<F> {
 		ConstraintSystem {
 			oracles: self.oracles,
@@ -43,6 +43,7 @@ impl<F: TowerField + SerializeBytes + DeserializeBytes> ConstraintSystem<F> {
 		}
 	}
 
+	/*
 	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
 		// oracles
 		self.oracles.write(&mut writer)?;
@@ -123,7 +124,7 @@ impl<F: TowerField + SerializeBytes + DeserializeBytes> ConstraintSystem<F> {
 			flushes,
 			max_channel_id,
 		})
-	}
+	}*/
 }
 
 /// Constraint system proof that has been serialized into bytes

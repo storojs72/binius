@@ -27,6 +27,11 @@ tracing-profile.workspace = true
 tracing.workspace = true
 bytemuck.workspace = true
 
+serde_json.workspace = true
+serde.workspace = true
+typetag.workspace = true
+bytes.workspace = true
+
 [[example]]
 name = "groestl_circuit"
 path = "groestl_circuit.rs"

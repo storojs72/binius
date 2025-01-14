@@ -232,7 +232,6 @@ fn main() {
 		let proof = constraint_system::prove::<
             OptimalUnderlier,
             CanonicalTowerFamily,
-            BinaryField8b,
             _,
             Groestl256,
             Groestl256ByteCompression,

@@ -25,7 +25,7 @@
 //! [DP24]: <https://eprint.iacr.org/2024/504>
 
 mod common;
-mod eq_ind;
+pub(crate) mod eq_ind;
 mod error;
 mod prove;
 #[cfg(test)]

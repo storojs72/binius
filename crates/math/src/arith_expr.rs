@@ -48,7 +48,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ArithExpr<F> {
 				writer.write_all(1u32.to_le_bytes().as_slice())?;
 
 				let mut buffer = BytesMut::new();
-				constant.serialize(&mut buffer).unwrap();
+				constant.serialize_to_bytes(&mut buffer).unwrap();
 				let buffer = buffer.to_vec();
 				writer.write_all(buffer.len().to_le_bytes().as_slice())?;
 				writer.write_all(&buffer)?;
@@ -108,7 +108,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ArithExpr<F> {
 				let mut buffer = BytesMut::zeroed(len as usize);
 				reader.read_exact(&mut buffer)?;
 
-				let field = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+				let field = F::deserialize_from_bytes(buffer.to_vec().as_slice()).unwrap();
 				Self::Const(field)
 			},
 			2u32 => {

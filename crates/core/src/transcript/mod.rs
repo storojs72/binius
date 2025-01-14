@@ -222,12 +222,12 @@ pub trait CanRead {
 	fn buffer(&mut self) -> impl Buf + '_;
 
 	fn read<T: DeserializeBytes>(&mut self) -> Result<T, Error> {
-		T::deserialize(self.buffer()).map_err(Into::into)
+		T::deserialize_from_bytes(self.buffer()).map_err(Into::into)
 	}
 
 	fn read_vec<T: DeserializeBytes>(&mut self, n: usize) -> Result<Vec<T>, Error> {
 		let mut buffer = self.buffer();
-		repeat_with(move || T::deserialize(&mut buffer).map_err(Into::into))
+		repeat_with(move || T::deserialize_from_bytes(&mut buffer).map_err(Into::into))
 			.take(n)
 			.collect()
 	}
@@ -305,14 +305,14 @@ pub trait CanWrite {
 
 	fn write<T: SerializeBytes>(&mut self, value: &T) {
 		value
-			.serialize(self.buffer())
+			.serialize_to_bytes(self.buffer())
 			.expect("TODO: propagate error")
 	}
 
 	fn write_slice<T: SerializeBytes>(&mut self, values: &[T]) {
 		let mut buffer = self.buffer();
 		for value in values {
-			value.serialize(&mut buffer).expect("TODO: propagate error")
+			value.serialize_to_bytes(&mut buffer).expect("TODO: propagate error")
 		}
 	}
 

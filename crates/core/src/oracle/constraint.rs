@@ -57,7 +57,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ConstraintPredicate<F> {
 				writer.write_all(1u32.to_le_bytes().as_slice())?;
 
 				let mut buffer = BytesMut::new();
-				sum.serialize(&mut buffer).unwrap();
+				sum.serialize_to_bytes(&mut buffer).unwrap();
 
 				writer.write_all(&buffer.to_vec())?;
 			},
@@ -75,7 +75,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ConstraintPredicate<F> {
 		let predicate = match value {
 			1u32 => {
 				let buffer = BytesMut::new();
-				let field = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+				let field = F::deserialize_from_bytes(buffer.to_vec().as_slice()).unwrap();
 				Self::Sum(field)
 			},
 			2u32 => {
