@@ -4,13 +4,15 @@ use binius_field::{ExtensionField, TowerField};
 use binius_utils::bail;
 
 use crate::polynomial::{Error, MultivariatePoly};
+//use serde::{Serialize, Serializer};
+//use binius_utils::serialization::{DeserializeBytes, SerializeBytes};
 
 /// A constant polynomial.
 #[derive(Debug, Copy, Clone)]
 pub struct Constant<F> {
-	n_vars: usize,
-	value: F,
-	tower_level: usize,
+	pub n_vars: usize,
+	pub value: F,
+	pub tower_level: usize,
 }
 
 impl<F: TowerField> Constant<F> {
@@ -48,3 +50,22 @@ impl<F: TowerField> MultivariatePoly<F> for Constant<F> {
 		self.tower_level
 	}
 }
+
+/*
+#[cfg(test)]
+mod test {
+	use binius_field::{BinaryField128b, Field};
+	use crate::transparent::constant::Constant;
+
+	#[test]
+	fn test_bincode_serialize() {
+		type F = BinaryField128b;
+		let c = Constant {
+			n_vars: 100usize,
+			value: F::ONE,
+			tower_level: 1usize,
+		};
+
+		bincode::serialize(&c).unwrap();
+	}
+}*/

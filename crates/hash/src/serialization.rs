@@ -75,7 +75,7 @@ where
 		let mut buffer = HashBuffer::new(&mut hasher);
 		for item in items {
 			item.borrow()
-				.serialize(&mut buffer)
+				.serialize_to_bytes(&mut buffer)
 				.expect("HashBuffer has infinite capacity");
 		}
 	}

@@ -891,7 +891,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Projected<F> {
 		writer.write_all(values_len.to_le_bytes().as_slice())?;
 		for value in self.values.iter() {
 			let mut buffer = BytesMut::new();
-			value.serialize(&mut buffer).unwrap();
+			value.serialize_to_bytes(&mut buffer).unwrap();
 			let buffer = buffer.to_vec();
 			writer.write_all(buffer.len().to_le_bytes().as_slice())?;
 			writer.write_all(&buffer)?;
@@ -925,7 +925,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Projected<F> {
 			let mut buffer = BytesMut::zeroed(len as usize);
 			reader.read_exact(&mut buffer)?;
 
-			let val = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+			let val = F::deserialize_from_bytes(buffer.to_vec().as_slice()).unwrap();
 			values.push(val);
 		}
 
@@ -1120,7 +1120,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> LinearCombination<F> {
 
 		// offset
 		let mut buffer = BytesMut::new();
-		self.offset.serialize(&mut buffer).unwrap();
+		self.offset.serialize_to_bytes(&mut buffer).unwrap();
 		let buffer = buffer.to_vec();
 		writer.write_all(buffer.len().to_le_bytes().as_slice())?;
 		writer.write_all(&buffer)?;
@@ -1131,7 +1131,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> LinearCombination<F> {
 		for (poly, field_element) in self.inner.iter() {
 			Arc::unwrap_or_clone(poly.clone()).write(&mut writer)?;
 			let mut buffer = BytesMut::new();
-			field_element.serialize(&mut buffer).unwrap();
+			field_element.serialize_to_bytes(&mut buffer).unwrap();
 			writer.write_all(buffer.len().to_le_bytes().as_slice())?;
 			writer.write_all(&buffer.to_vec())?;
 		}
@@ -1153,7 +1153,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> LinearCombination<F> {
 		let mut buffer = BytesMut::zeroed(len as usize);
 		reader.read_exact(&mut buffer)?;
 
-		let offset = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+		let offset = F::deserialize_from_bytes(buffer.to_vec().as_slice()).unwrap();
 
 		// inner
 		four_bytes_buffer = [0u8; 4];
@@ -1170,7 +1170,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> LinearCombination<F> {
 			let mut buffer = BytesMut::zeroed(len as usize);
 			reader.read_exact(&mut buffer)?;
 
-			let field = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+			let field = F::deserialize_from_bytes(buffer.to_vec().as_slice()).unwrap();
 
 			inner.push((poly_oracle, field));
 		}

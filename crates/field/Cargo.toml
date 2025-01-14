@@ -21,6 +21,8 @@ thiserror.workspace = true
 transpose.workspace = true
 tracing.workspace = true
 
+serde.workspace = true
+
 [dev-dependencies]
 criterion.workspace = true
 itertools.workspace = true

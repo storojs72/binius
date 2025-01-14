@@ -28,6 +28,12 @@ tracing.workspace = true
 trait-set.workspace = true
 transpose.workspace = true
 
+bincode.workspace = true
+serde.workspace = true
+#erased-serde.workspace = true
+typetag.workspace = true
+
+
 [dev-dependencies]
 binius_macros = { path = "../macros" }
 criterion.workspace = true

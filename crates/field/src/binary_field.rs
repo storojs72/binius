@@ -690,6 +690,75 @@ unsafe impl Pod for BinaryField32b {}
 unsafe impl Pod for BinaryField64b {}
 unsafe impl Pod for BinaryField128b {}
 
+use serde::{ Serialize, Serializer };
+impl Serialize for BinaryField128b {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+		let mut buffer = bytes::BytesMut::new();
+		self.serialize_to_bytes(&mut buffer).unwrap();
+		let buffer = buffer.to_vec();
+		serializer.serialize_bytes(buffer.as_slice())
+	}
+}
+impl Serialize for BinaryField64b {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+		let mut buffer = bytes::BytesMut::new();
+		self.serialize_to_bytes(&mut buffer).unwrap();
+		let buffer = buffer.to_vec();
+		serializer.serialize_bytes(buffer.as_slice())
+	}
+}
+impl Serialize for BinaryField32b {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+		let mut buffer = bytes::BytesMut::new();
+		self.serialize_to_bytes(&mut buffer).unwrap();
+		let buffer = buffer.to_vec();
+		serializer.serialize_bytes(buffer.as_slice())
+	}
+}
+
+impl Serialize for BinaryField16b {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+		let mut buffer = bytes::BytesMut::new();
+		self.serialize_to_bytes(&mut buffer).unwrap();
+		let buffer = buffer.to_vec();
+		serializer.serialize_bytes(buffer.as_slice())
+	}
+}
+
+impl Serialize for BinaryField8b {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+		let mut buffer = bytes::BytesMut::new();
+		self.serialize_to_bytes(&mut buffer).unwrap();
+		let buffer = buffer.to_vec();
+		serializer.serialize_bytes(buffer.as_slice())
+	}
+}
+
+impl Serialize for BinaryField4b {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+		let mut buffer = bytes::BytesMut::new();
+		self.serialize_to_bytes(&mut buffer).unwrap();
+		let buffer = buffer.to_vec();
+		serializer.serialize_bytes(buffer.as_slice())
+	}
+}
+impl Serialize for BinaryField2b {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+		let mut buffer = bytes::BytesMut::new();
+		self.serialize_to_bytes(&mut buffer).unwrap();
+		let buffer = buffer.to_vec();
+		serializer.serialize_bytes(buffer.as_slice())
+	}
+}
+impl Serialize for BinaryField1b {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+		let mut buffer = bytes::BytesMut::new();
+		self.serialize_to_bytes(&mut buffer).unwrap();
+		let buffer = buffer.to_vec();
+		serializer.serialize_bytes(buffer.as_slice())
+	}
+}
+
 binary_tower!(
 	BinaryField1b(U1)
 	< BinaryField2b(U2)
@@ -709,7 +778,7 @@ pub fn is_canonical_tower<F: TowerField>() -> bool {
 macro_rules! serialize_deserialize {
 	($bin_type:ty, SmallU<$U:literal>) => {
 		impl SerializeBytes for $bin_type {
-			fn serialize(&self, mut write_buf: impl BufMut) -> Result<(), SerializationError> {
+			fn serialize_to_bytes(&self, mut write_buf: impl BufMut) -> Result<(), SerializationError> {
 				if write_buf.remaining_mut() < 1 {
 					::binius_utils::bail!(SerializationError::WriteBufferFull);
 				}
@@ -720,7 +789,7 @@ macro_rules! serialize_deserialize {
 		}
 
 		impl DeserializeBytes for $bin_type {
-			fn deserialize(mut read_buf: impl Buf) -> Result<Self, SerializationError> {
+			fn deserialize_from_bytes(mut read_buf: impl Buf) -> Result<Self, SerializationError> {
 				if read_buf.remaining() < 1 {
 					::binius_utils::bail!(SerializationError::NotEnoughBytes);
 				}
@@ -731,7 +800,7 @@ macro_rules! serialize_deserialize {
 	};
 	($bin_type:ty, $inner_type:ty) => {
 		impl SerializeBytes for $bin_type {
-			fn serialize(&self, mut write_buf: impl BufMut) -> Result<(), SerializationError> {
+			fn serialize_to_bytes(&self, mut write_buf: impl BufMut) -> Result<(), SerializationError> {
 				if write_buf.remaining_mut() < (<$inner_type>::BITS / 8) as usize {
 					::binius_utils::bail!(SerializationError::WriteBufferFull);
 				}
@@ -741,7 +810,7 @@ macro_rules! serialize_deserialize {
 		}
 
 		impl DeserializeBytes for $bin_type {
-			fn deserialize(mut read_buf: impl Buf) -> Result<Self, SerializationError> {
+			fn deserialize_from_bytes(mut read_buf: impl Buf) -> Result<Self, SerializationError> {
 				let mut inner = <$inner_type>::default().to_le_bytes();
 				if read_buf.remaining() < inner.len() {
 					::binius_utils::bail!(SerializationError::NotEnoughBytes);
@@ -767,14 +836,14 @@ pub fn serialize_canonical<F: TowerField, W: BufMut>(
 	elem: F,
 	mut writer: W,
 ) -> Result<(), SerializationError> {
-	F::Canonical::from(elem).serialize(&mut writer)
+	F::Canonical::from(elem).serialize_to_bytes(&mut writer)
 }
 
 /// Deserializes a [`TowerField`] element from a byte buffer with a canonical encoding.
 pub fn deserialize_canonical<F: TowerField, R: Buf>(
 	mut reader: R,
 ) -> Result<F, SerializationError> {
-	let as_canonical = F::Canonical::deserialize(&mut reader)?;
+	let as_canonical = F::Canonical::deserialize_from_bytes(&mut reader)?;
 	Ok(F::from(as_canonical))
 }
 
@@ -1246,25 +1315,25 @@ pub(crate) mod tests {
 		let b64 = BinaryField64b::new(0x13579BDF02468ACE);
 		let b128 = BinaryField128b::new(0x147AD0369CF258BE8899AABBCCDDEEFF);
 
-		b1.serialize(&mut buffer).unwrap();
-		b8.serialize(&mut buffer).unwrap();
-		b2.serialize(&mut buffer).unwrap();
-		b16.serialize(&mut buffer).unwrap();
-		b32.serialize(&mut buffer).unwrap();
-		b4.serialize(&mut buffer).unwrap();
-		b64.serialize(&mut buffer).unwrap();
-		b128.serialize(&mut buffer).unwrap();
+		b1.serialize_to_bytes(&mut buffer).unwrap();
+		b8.serialize_to_bytes(&mut buffer).unwrap();
+		b2.serialize_to_bytes(&mut buffer).unwrap();
+		b16.serialize_to_bytes(&mut buffer).unwrap();
+		b32.serialize_to_bytes(&mut buffer).unwrap();
+		b4.serialize_to_bytes(&mut buffer).unwrap();
+		b64.serialize_to_bytes(&mut buffer).unwrap();
+		b128.serialize_to_bytes(&mut buffer).unwrap();
 
 		let mut read_buffer = buffer.freeze();
 
-		assert_eq!(BinaryField1b::deserialize(&mut read_buffer).unwrap(), b1);
-		assert_eq!(BinaryField8b::deserialize(&mut read_buffer).unwrap(), b8);
-		assert_eq!(BinaryField2b::deserialize(&mut read_buffer).unwrap(), b2);
-		assert_eq!(BinaryField16b::deserialize(&mut read_buffer).unwrap(), b16);
-		assert_eq!(BinaryField32b::deserialize(&mut read_buffer).unwrap(), b32);
-		assert_eq!(BinaryField4b::deserialize(&mut read_buffer).unwrap(), b4);
-		assert_eq!(BinaryField64b::deserialize(&mut read_buffer).unwrap(), b64);
-		assert_eq!(BinaryField128b::deserialize(&mut read_buffer).unwrap(), b128);
+		assert_eq!(BinaryField1b::deserialize_from_bytes(&mut read_buffer).unwrap(), b1);
+		assert_eq!(BinaryField8b::deserialize_from_bytes(&mut read_buffer).unwrap(), b8);
+		assert_eq!(BinaryField2b::deserialize_from_bytes(&mut read_buffer).unwrap(), b2);
+		assert_eq!(BinaryField16b::deserialize_from_bytes(&mut read_buffer).unwrap(), b16);
+		assert_eq!(BinaryField32b::deserialize_from_bytes(&mut read_buffer).unwrap(), b32);
+		assert_eq!(BinaryField4b::deserialize_from_bytes(&mut read_buffer).unwrap(), b4);
+		assert_eq!(BinaryField64b::deserialize_from_bytes(&mut read_buffer).unwrap(), b64);
+		assert_eq!(BinaryField128b::deserialize_from_bytes(&mut read_buffer).unwrap(), b128);
 	}
 
 	#[test]

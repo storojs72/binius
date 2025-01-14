@@ -25,6 +25,7 @@ pub struct Constraint<F: Field> {
 	pub predicate: ConstraintPredicate<F>,
 }
 
+/*
 impl<F: Field + SerializeBytes + DeserializeBytes> Constraint<F> {
 	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
 		self.composition.write(&mut writer)?;
@@ -40,7 +41,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Constraint<F> {
 			predicate,
 		})
 	}
-}
+}*/
 
 /// Predicate can either be a sum of values of a composition on the hypercube (sumcheck) or equality to zero
 /// on the hypercube (zerocheck)
@@ -57,7 +58,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ConstraintPredicate<F> {
 				writer.write_all(1u32.to_le_bytes().as_slice())?;
 
 				let mut buffer = BytesMut::new();
-				sum.serialize(&mut buffer).unwrap();
+				sum.serialize_to_bytes(&mut buffer).unwrap();
 
 				writer.write_all(&buffer.to_vec())?;
 			},
@@ -75,7 +76,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ConstraintPredicate<F> {
 		let predicate = match value {
 			1u32 => {
 				let buffer = BytesMut::new();
-				let field = F::deserialize(buffer.to_vec().as_slice()).unwrap();
+				let field = F::deserialize_from_bytes(buffer.to_vec().as_slice()).unwrap();
 				Self::Sum(field)
 			},
 			2u32 => {
@@ -97,6 +98,7 @@ pub struct ConstraintSet<F: Field> {
 	pub constraints: Vec<Constraint<F>>,
 }
 
+/*
 impl<F: Field + SerializeBytes + DeserializeBytes> ConstraintSet<F> {
 	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
 		// n_vars
@@ -154,7 +156,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> ConstraintSet<F> {
 			}
 		)
 	}
-}
+}*/
 
 // A deferred constraint constructor that instantiates index composition after the superset of oracles is known
 #[allow(clippy::type_complexity)]

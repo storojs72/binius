@@ -13,18 +13,18 @@ pub enum Error {
 
 /// Represents type that can be serialized to a byte buffer.
 pub trait SerializeBytes {
-	fn serialize(&self, write_buf: impl BufMut) -> Result<(), Error>;
+	fn serialize_to_bytes(&self, write_buf: impl BufMut) -> Result<(), Error>;
 }
 
 /// Represents type that can be deserialized from a byte buffer.
 pub trait DeserializeBytes {
-	fn deserialize(read_buf: impl Buf) -> Result<Self, Error>
+	fn deserialize_from_bytes(read_buf: impl Buf) -> Result<Self, Error>
 	where
 		Self: Sized;
 }
 
 impl<N: ArrayLength<u8>> SerializeBytes for GenericArray<u8, N> {
-	fn serialize(&self, mut write_buf: impl BufMut) -> Result<(), Error> {
+	fn serialize_to_bytes(&self, mut write_buf: impl BufMut) -> Result<(), Error> {
 		if write_buf.remaining_mut() < N::USIZE {
 			return Err(Error::WriteBufferFull);
 		}
@@ -34,7 +34,7 @@ impl<N: ArrayLength<u8>> SerializeBytes for GenericArray<u8, N> {
 }
 
 impl<N: ArrayLength<u8>> DeserializeBytes for GenericArray<u8, N> {
-	fn deserialize(mut read_buf: impl Buf) -> Result<Self, Error> {
+	fn deserialize_from_bytes(mut read_buf: impl Buf) -> Result<Self, Error> {
 		if read_buf.remaining() < N::USIZE {
 			return Err(Error::NotEnoughBytes);
 		}
@@ -60,9 +60,9 @@ mod tests {
 		rng.fill_bytes(&mut data);
 
 		let mut buf = Vec::new();
-		data.serialize(&mut buf).unwrap();
+		data.serialize_to_bytes(&mut buf).unwrap();
 
-		let data_deserialized = GenericArray::<u8, U32>::deserialize(&mut buf.as_slice()).unwrap();
+		let data_deserialized = GenericArray::<u8, U32>::deserialize_from_bytes(&mut buf.as_slice()).unwrap();
 		assert_eq!(data_deserialized, data);
 	}
 }
