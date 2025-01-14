@@ -14,6 +14,8 @@ use crate::{
 	polynomial::{Error as PolynomialError, IdentityCompositionPoly, MultivariatePoly},
 };
 
+use serde::Serialize;
+
 /// Identifier for a multilinear oracle in a [`MultilinearOracleSet`].
 pub type OracleId = usize;
 
@@ -951,7 +953,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Projected<F> {
 	}
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize)]
 pub enum ShiftVariant {
 	CircularLeft,
 	LogicalLeft,
