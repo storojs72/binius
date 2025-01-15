@@ -1,15 +1,12 @@
 // Copyright 2024-2025 Irreducible Inc.
 
 use core::iter::IntoIterator;
-use std::io::{self, Write, Read};
 use std::sync::Arc;
-use bytes::BytesMut;
 
 use binius_field::{Field, TowerField};
 use binius_math::{ArithExpr, CompositionPolyOS};
 use binius_utils::bail;
 use itertools::Itertools;
-use binius_utils::serialization::{DeserializeBytes, SerializeBytes};
 
 use super::{Error, MultilinearOracleSet, MultilinearPolyOracle, OracleId};
 
@@ -51,6 +48,7 @@ pub enum ConstraintPredicate<F: Field> {
 	Zero,
 }
 
+/*
 impl <F: Field + SerializeBytes + DeserializeBytes> ConstraintPredicate<F> {
 	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
 		match self {
@@ -89,6 +87,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ConstraintPredicate<F> {
 		Ok(predicate)
 	}
 }
+*/
 
 /// Constraint set is a group of constraints that operate over the same set of oracle-identified multilinears
 #[derive(Debug, Clone)]
