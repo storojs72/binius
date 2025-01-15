@@ -690,74 +690,37 @@ unsafe impl Pod for BinaryField32b {}
 unsafe impl Pod for BinaryField64b {}
 unsafe impl Pod for BinaryField128b {}
 
-use serde::{ Serialize, Serializer };
-impl Serialize for BinaryField128b {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		let mut buffer = bytes::BytesMut::new();
-		self.serialize_to_bytes(&mut buffer).unwrap();
-		let buffer = buffer.to_vec();
-		serializer.serialize_bytes(buffer.as_slice())
-	}
-}
-impl Serialize for BinaryField64b {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		let mut buffer = bytes::BytesMut::new();
-		self.serialize_to_bytes(&mut buffer).unwrap();
-		let buffer = buffer.to_vec();
-		serializer.serialize_bytes(buffer.as_slice())
-	}
-}
-impl Serialize for BinaryField32b {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		let mut buffer = bytes::BytesMut::new();
-		self.serialize_to_bytes(&mut buffer).unwrap();
-		let buffer = buffer.to_vec();
-		serializer.serialize_bytes(buffer.as_slice())
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::{EnumAccess, MapAccess, SeqAccess};
+
+macro_rules! serde_serialize_deserialize_binary_field {
+	($bin_type:ty) => {
+		impl Serialize for $bin_type {
+			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+				let mut buffer = bytes::BytesMut::new();
+				self.serialize_to_bytes(&mut buffer).unwrap();
+				buffer.serialize(serializer)
+			}
+		}
+
+		impl<'de> de::Deserialize<'de> for $bin_type {
+			fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+				let mut bytes = bytes::Bytes::deserialize(deserializer)?;
+				let value = <$bin_type>::deserialize_from_bytes(&mut bytes).unwrap();
+				Ok(value)
+			}
+		}
 	}
 }
 
-impl Serialize for BinaryField16b {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		let mut buffer = bytes::BytesMut::new();
-		self.serialize_to_bytes(&mut buffer).unwrap();
-		let buffer = buffer.to_vec();
-		serializer.serialize_bytes(buffer.as_slice())
-	}
-}
-
-impl Serialize for BinaryField8b {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		let mut buffer = bytes::BytesMut::new();
-		self.serialize_to_bytes(&mut buffer).unwrap();
-		let buffer = buffer.to_vec();
-		serializer.serialize_bytes(buffer.as_slice())
-	}
-}
-
-impl Serialize for BinaryField4b {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		let mut buffer = bytes::BytesMut::new();
-		self.serialize_to_bytes(&mut buffer).unwrap();
-		let buffer = buffer.to_vec();
-		serializer.serialize_bytes(buffer.as_slice())
-	}
-}
-impl Serialize for BinaryField2b {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		let mut buffer = bytes::BytesMut::new();
-		self.serialize_to_bytes(&mut buffer).unwrap();
-		let buffer = buffer.to_vec();
-		serializer.serialize_bytes(buffer.as_slice())
-	}
-}
-impl Serialize for BinaryField1b {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-		let mut buffer = bytes::BytesMut::new();
-		self.serialize_to_bytes(&mut buffer).unwrap();
-		let buffer = buffer.to_vec();
-		serializer.serialize_bytes(buffer.as_slice())
-	}
-}
+serde_serialize_deserialize_binary_field!(BinaryField128b);
+serde_serialize_deserialize_binary_field!(BinaryField64b);
+serde_serialize_deserialize_binary_field!(BinaryField32b);
+serde_serialize_deserialize_binary_field!(BinaryField16b);
+serde_serialize_deserialize_binary_field!(BinaryField8b);
+serde_serialize_deserialize_binary_field!(BinaryField4b);
+serde_serialize_deserialize_binary_field!(BinaryField2b);
+serde_serialize_deserialize_binary_field!(BinaryField1b);
 
 binary_tower!(
 	BinaryField1b(U1)
@@ -938,6 +901,7 @@ impl From<BinaryField4b> for u8 {
 pub(crate) mod tests {
 	use bytes::BytesMut;
 	use proptest::prelude::*;
+	use rand::thread_rng;
 
 	use super::{
 		BinaryField16b as BF16, BinaryField1b as BF1, BinaryField2b as BF2, BinaryField4b as BF4,
@@ -1364,5 +1328,64 @@ pub(crate) mod tests {
 		// Assert a panic for higher values
 		let result = std::panic::catch_unwind(|| unsafe { BF4::new_unchecked(16) });
 		assert!(result.is_err(), "Expected a panic for value > 15, but no panic occurred");
+	}
+
+	use serde_test::{assert_tokens, Token};
+
+	#[test]
+	fn test_ser_de_empty() {
+		assert_tokens(
+			&BinaryField128b::ONE,
+			&[
+				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+			]
+		);
+		assert_tokens(
+			&BinaryField64b::ONE,
+			&[
+				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0])
+			]
+		);
+		assert_tokens(
+			&BinaryField32b::ONE,
+			&[
+				Token::Bytes(&[1, 0, 0, 0])
+			]
+		);
+
+		assert_tokens(
+			&BinaryField16b::ONE,
+			&[
+				Token::Bytes(&[1, 0])
+			]
+		);
+
+		assert_tokens(
+			&BinaryField8b::ONE,
+			&[
+				Token::Bytes(&[1])
+			]
+		);
+
+		assert_tokens(
+			&BinaryField4b::ONE,
+			&[
+				Token::Bytes(&[1])
+			]
+		);
+
+		assert_tokens(
+			&BinaryField2b::ONE,
+			&[
+				Token::Bytes(&[1])
+			]
+		);
+
+		assert_tokens(
+			&BinaryField1b::ONE,
+			&[
+				Token::Bytes(&[1])
+			]
+		);
 	}
 }

@@ -22,12 +22,14 @@ transpose.workspace = true
 tracing.workspace = true
 
 serde.workspace = true
+bincode.workspace = true
 
 [dev-dependencies]
 criterion.workspace = true
 itertools.workspace = true
 paste.workspace = true
 proptest.workspace = true
+serde_test.workspace = true
 
 [features]
 trace_multiplications = []
