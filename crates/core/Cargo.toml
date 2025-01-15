@@ -32,7 +32,7 @@ bincode.workspace = true
 serde.workspace = true
 #erased-serde.workspace = true
 typetag.workspace = true
-
+serde_test.workspace = true
 
 [dev-dependencies]
 binius_macros = { path = "../macros" }

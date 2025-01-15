@@ -40,6 +40,8 @@ pub mod transpose;
 pub mod underlier;
 pub mod util;
 
+//pub mod arrays;
+
 pub use aes_field::*;
 pub use arch::byte_sliced::*;
 pub use binary_field::*;
