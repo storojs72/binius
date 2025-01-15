@@ -45,6 +45,7 @@ where
 	}
 
 	builder.assert_zero(
+		"u8add_common",
 		[xin, yin, cin, cout],
 		arith_expr!([xin, yin, cin, cout] = (xin + cin) * (yin + cin) + cin - cout).convert_field(),
 	);
@@ -97,6 +98,7 @@ where
 	u8add_common(builder, xin, yin, zout, cin, cout)?;
 
 	builder.assert_zero(
+		"u8add_committed",
 		[xin, yin, cin, zout],
 		arith_expr!([xin, yin, cin, zout] = xin + yin + cin - zout).convert_field(),
 	);

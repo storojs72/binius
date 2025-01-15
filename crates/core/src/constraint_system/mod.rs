@@ -9,7 +9,6 @@ mod verify;
 
 use std::io::{self, Read, Write};
 use binius_field::TowerField;
-use binius_utils::serialization::{DeserializeBytes, SerializeBytes};
 use channel::{ChannelId, Flush};
 pub use prove::prove;
 pub use verify::verify;

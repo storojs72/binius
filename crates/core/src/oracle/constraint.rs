@@ -1,15 +1,12 @@
 // Copyright 2024-2025 Irreducible Inc.
 
 use core::iter::IntoIterator;
-use std::io::{self, Write, Read};
 use std::sync::Arc;
-use bytes::BytesMut;
 
 use binius_field::{Field, TowerField};
 use binius_math::{ArithExpr, CompositionPolyOS};
 use binius_utils::bail;
 use itertools::Itertools;
-use binius_utils::serialization::{DeserializeBytes, SerializeBytes};
 
 use super::{Error, MultilinearOracleSet, MultilinearPolyOracle, OracleId};
 
@@ -25,6 +22,7 @@ pub struct Constraint<F: Field> {
 	pub predicate: ConstraintPredicate<F>,
 }
 
+/*
 impl<F: Field + SerializeBytes + DeserializeBytes> Constraint<F> {
 	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
 		self.composition.write(&mut writer)?;
@@ -40,7 +38,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Constraint<F> {
 			predicate,
 		})
 	}
-}
+}*/
 
 /// Predicate can either be a sum of values of a composition on the hypercube (sumcheck) or equality to zero
 /// on the hypercube (zerocheck)
@@ -50,6 +48,7 @@ pub enum ConstraintPredicate<F: Field> {
 	Zero,
 }
 
+/*
 impl <F: Field + SerializeBytes + DeserializeBytes> ConstraintPredicate<F> {
 	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
 		match self {
@@ -88,6 +87,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ConstraintPredicate<F> {
 		Ok(predicate)
 	}
 }
+*/
 
 /// Constraint set is a group of constraints that operate over the same set of oracle-identified multilinears
 #[derive(Debug, Clone)]
@@ -97,6 +97,7 @@ pub struct ConstraintSet<F: Field> {
 	pub constraints: Vec<Constraint<F>>,
 }
 
+/*
 impl<F: Field + SerializeBytes + DeserializeBytes> ConstraintSet<F> {
 	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
 		// n_vars
@@ -155,6 +156,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> ConstraintSet<F> {
 		)
 	}
 }
+*/
 
 // A deferred constraint constructor that instantiates index composition after the superset of oracles is known
 #[allow(clippy::type_complexity)]

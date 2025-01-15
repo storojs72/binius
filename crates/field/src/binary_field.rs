@@ -22,6 +22,8 @@ use crate::{
 	Field,
 };
 
+use serde::{de, Deserializer, Serialize, Serializer};
+
 /// A finite field with characteristic 2.
 pub trait BinaryField: ExtensionField<BinaryField1b> {
 	const N_BITS: usize = Self::DEGREE;
@@ -689,9 +691,6 @@ unsafe impl Pod for BinaryField16b {}
 unsafe impl Pod for BinaryField32b {}
 unsafe impl Pod for BinaryField64b {}
 unsafe impl Pod for BinaryField128b {}
-
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-use serde::de::{EnumAccess, MapAccess, SeqAccess};
 
 macro_rules! serde_serialize_deserialize_binary_field {
 	($bin_type:ty) => {
