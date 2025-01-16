@@ -8,9 +8,9 @@ use binius_utils::bail;
 use bytemuck::zeroed_vec;
 use itertools::{izip, Itertools};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use crate::polynomial::{Error, MultivariatePoly};
-use serde::{Serialize, Deserialize};
 
 /// A transparent multilinear polynomial whose evaluation at index $i$ is $g^i$ for
 /// some field element $g$.
@@ -82,13 +82,14 @@ impl<F: TowerField, P: PackedField<Scalar = F>> MultivariatePoly<P> for Powers<F
 
 #[cfg(test)]
 mod tests {
-	use binius_field::{BinaryField128b, BinaryField32b, Field, PackedBinaryField4x32b, PackedField, TowerField};
+	use binius_field::{
+		BinaryField128b, BinaryField32b, Field, PackedBinaryField4x32b, PackedField, TowerField,
+	};
 	use rand::{prelude::StdRng, SeedableRng};
+	use serde_test::{assert_tokens, Token};
 
 	use super::Powers;
 	use crate::polynomial::MultivariatePoly;
-	use serde_test::{assert_tokens, Token};
-
 
 	fn test_consistency_helper<P: PackedField<Scalar: TowerField>>(n_vars: usize, base: P::Scalar) {
 		let powers = Powers::new(n_vars, base);
@@ -127,21 +128,22 @@ mod tests {
 
 		let instance = Powers {
 			n_vars: 200usize,
-			base: three
+			base: three,
 		};
 
 		assert_tokens(
 			&instance,
 			&[
-				Token::Struct { name: "Powers", len: 2},
-
+				Token::Struct {
+					name: "Powers",
+					len: 2,
+				},
 				Token::Str("n_vars"),
 				Token::U64(200),
 				Token::Str("base"),
 				Token::Bytes(&[3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-
 				Token::StructEnd,
-			]
+			],
 		);
 
 		let bytes = bincode::serialize(&instance).unwrap();

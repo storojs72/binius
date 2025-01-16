@@ -10,7 +10,7 @@ use binius_field::{
 };
 use binius_utils::bail;
 use rayon::prelude::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use super::{Error, MultilinearExtension, MultilinearPoly, MultilinearQueryRef};
 
@@ -518,13 +518,13 @@ mod tests {
 	use std::iter::repeat_with;
 
 	use binius_field::{
-		arch::OptimalUnderlier256b, as_packed_field::PackedType, BinaryField128b, BinaryField16b,
-		BinaryField32b, BinaryField8b, PackedBinaryField16x8b, PackedBinaryField1x128b,
-		PackedBinaryField4x32b, PackedBinaryField8x16b, PackedExtension, PackedField,
-		PackedFieldIndexable,
+		arch::{OptimalUnderlier, OptimalUnderlier256b},
+		as_packed_field::PackedType,
+		BinaryField128b, BinaryField16b, BinaryField32b, BinaryField8b, PackedBinaryField16x8b,
+		PackedBinaryField1x128b, PackedBinaryField4x32b, PackedBinaryField8x16b, PackedExtension,
+		PackedField, PackedFieldIndexable,
 	};
 	use rand::prelude::*;
-	use binius_field::arch::OptimalUnderlier;
 
 	use super::*;
 	use crate::{tensor_prod_eq_ind, MultilinearQuery};
@@ -727,15 +727,11 @@ mod tests {
 		type F = BinaryField32b;
 		type PackedF = PackedType<U, F>;
 
-		let me = MultilinearExtension::new(
-			1,
-			vec![PackedF::one()],
-		)
-			.unwrap();
+		let me = MultilinearExtension::new(1, vec![PackedF::one()]).unwrap();
 
 		let instance = MLEEmbeddingAdapter {
 			0: me,
-			1: PhantomData::<PackedF>::default()
+			1: PhantomData::<PackedF>::default(),
 		};
 
 		let bytes = bincode::serialize(&instance).unwrap();

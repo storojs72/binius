@@ -10,13 +10,13 @@ use binius_math::{tensor_prod_eq_ind, MultilinearExtension};
 use binius_utils::bail;
 use bytemuck::zeroed_vec;
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 
 use super::error::Error;
 use crate::{
 	polynomial::{Error as PolynomialError, MultivariatePoly},
 	tensor_algebra::TensorAlgebra,
 };
-use serde::{Serialize, Deserialize};
 
 /// The multilinear function $A$ from [DP24] Section 5.
 ///
@@ -178,35 +178,34 @@ mod tests {
 			z_vals: Arc::new([one, two]),
 			row_batch_coeffs: Arc::new([three, four]),
 			mixing_coeff: five,
-			_marker: PhantomData::<FS>::default()
+			_marker: PhantomData::<FS>::default(),
 		};
 
 		assert_tokens(
 			&instance,
 			&[
-				Token::Struct { name: "RingSwitchEqInd", len: 4 },
-
+				Token::Struct {
+					name: "RingSwitchEqInd",
+					len: 4,
+				},
 				Token::Str("z_vals"),
-				Token::Seq{ len: Some(2)},
+				Token::Seq { len: Some(2) },
 				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
 				Token::Bytes(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
 				Token::SeqEnd,
-
 				Token::Str("row_batch_coeffs"),
-				Token::Seq{ len: Some(2)},
+				Token::Seq { len: Some(2) },
 				Token::Bytes(&[3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
 				Token::Bytes(&[4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
 				Token::SeqEnd,
-
 				Token::Str("mixing_coeff"),
 				Token::Bytes(&[5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-
 				Token::Str("_marker"),
-				Token::UnitStruct { name: "PhantomData"},
-
+				Token::UnitStruct {
+					name: "PhantomData",
+				},
 				Token::StructEnd,
-			]
+			],
 		);
-
 	}
 }

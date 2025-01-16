@@ -3,13 +3,12 @@
 use binius_field::{util::eq, Field, PackedFieldIndexable, TowerField};
 use binius_math::MultilinearExtension;
 use binius_utils::bail;
+use serde::{Deserialize, Serialize};
 
 use crate::{
 	oracle::ShiftVariant,
 	polynomial::{Error, MultivariatePoly},
 };
-
-use serde::{Serialize, Deserialize};
 
 /// Represents MLE of shift indicator $f_{b, o}(X, Y)$ on $2*b$ variables
 /// partially evaluated at $Y = r$
@@ -352,11 +351,10 @@ mod tests {
 	use binius_field::{BinaryField128b, BinaryField32b, PackedBinaryField4x32b};
 	use binius_hal::{make_portable_backend, ComputationBackendExt};
 	use rand::{rngs::StdRng, SeedableRng};
+	use serde_test::{assert_tokens, Token};
 
 	use super::*;
 	use crate::polynomial::test_utils::decompose_index_to_hypercube_point;
-
-	use serde_test::{assert_tokens, Token};
 
 	// Consistency Tests for each shift variant
 	fn test_circular_left_shift_consistency_help<
@@ -620,22 +618,27 @@ mod tests {
 		assert_tokens(
 			&instance,
 			&[
-				Token::Struct { name: "ShiftIndPartialEval", len: 4},
-
+				Token::Struct {
+					name: "ShiftIndPartialEval",
+					len: 4,
+				},
 				Token::Str("block_size"),
 				Token::U64(20),
 				Token::Str("shift_offset"),
 				Token::U64(10),
 				Token::Str("shift_variant"),
-				Token::UnitVariant { name: "ShiftVariant", variant: "CircularLeft" },
+				Token::UnitVariant {
+					name: "ShiftVariant",
+					variant: "CircularLeft",
+				},
 				Token::Str("r"),
-				Token::Seq {len: Some(3)},
+				Token::Seq { len: Some(3) },
 				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
 				Token::Bytes(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
 				Token::Bytes(&[3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
 				Token::SeqEnd,
 				Token::StructEnd,
-			]
+			],
 		);
 	}
 }

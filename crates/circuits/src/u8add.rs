@@ -1,6 +1,5 @@
 // Copyright 2024 Irreducible Inc.
 
-use crate::builder::ConstraintSystemBuilder;
 use binius_core::oracle::{OracleId, ShiftVariant};
 use binius_field::{
 	as_packed_field::PackScalar, underlier::UnderlierType, BinaryField1b, TowerField,
@@ -8,6 +7,8 @@ use binius_field::{
 use binius_macros::arith_expr;
 use bytemuck::Pod;
 use rayon::prelude::*;
+
+use crate::builder::ConstraintSystemBuilder;
 
 fn u8add_common<U, F>(
 	builder: &mut ConstraintSystemBuilder<U, F>,

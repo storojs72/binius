@@ -1,8 +1,6 @@
-use binius_circuits::{arithmetic, builder::ConstraintSystemBuilder, unconstrained::variable_u128};
-use binius_field::{
-	arch::OptimalUnderlier, BinaryField128b, BinaryField1b,
-};
 use binius_acc_utils::prove_verify_test;
+use binius_circuits::{arithmetic, builder::ConstraintSystemBuilder, unconstrained::variable_u128};
+use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b};
 
 const ROWS: usize = 7;
 
@@ -18,7 +16,8 @@ fn u32_addition(x: u32, y: u32) -> u32 {
 	let x = variable_u128::<_, _, BinaryField1b>(&mut builder, "x", ROWS, x as u128).unwrap();
 	let y = variable_u128::<_, _, BinaryField1b>(&mut builder, "y", ROWS, y as u128).unwrap();
 
-	let sum = arithmetic::u32::add(&mut builder, "x + y", x, y, arithmetic::Flags::Unchecked).unwrap();
+	let sum =
+		arithmetic::u32::add(&mut builder, "x + y", x, y, arithmetic::Flags::Unchecked).unwrap();
 
 	let witness = builder.witness().unwrap();
 	let sum_value = witness
@@ -47,7 +46,6 @@ fn main() {
 	let out1 = out_of_circuit(x, y);
 	let out2 = u32_addition(x, y);
 	assert_eq!(out1, out2);
-
 
 	let out3 = u32_addition_lookup(x, y);
 	assert_eq!(out1, out3);

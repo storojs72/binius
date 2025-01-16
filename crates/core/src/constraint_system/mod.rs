@@ -8,6 +8,7 @@ pub mod validate;
 mod verify;
 
 use std::io::{self, Read, Write};
+
 use binius_field::TowerField;
 use channel::{ChannelId, Flush};
 pub use prove::prove;
@@ -138,7 +139,7 @@ impl Proof {
 		self.transcript.len() + self.advice.len()
 	}
 
-	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()>{
+	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
 		assert!(self.transcript.len() < u32::MAX as usize, "too long transcript");
 		assert!(self.advice.len() < u32::MAX as usize, "too long advice");
 
@@ -161,9 +162,6 @@ impl Proof {
 		let mut advice = vec![0u8; u32::from_le_bytes(advice_len) as usize];
 		reader.read_exact(&mut advice)?;
 
-		Ok(Proof {
-			transcript,
-			advice
-		})
+		Ok(Proof { transcript, advice })
 	}
 }

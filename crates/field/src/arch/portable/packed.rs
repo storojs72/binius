@@ -16,6 +16,7 @@ use std::{
 use binius_utils::{checked_arithmetics::checked_int_div, iter::IterExtensions};
 use bytemuck::{Pod, TransparentWrapper, Zeroable};
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
 use subtle::{Choice, ConstantTimeEq};
 
 use super::packed_arithmetic::UnderlierWithBitConstants;
@@ -28,9 +29,9 @@ use crate::{
 	BinaryField, PackedField,
 };
 
-use serde::{Serialize, Deserialize};
-
-#[derive(PartialEq, Eq, Clone, Copy, Default, bytemuck::TransparentWrapper, Serialize, Deserialize)]
+#[derive(
+	PartialEq, Eq, Clone, Copy, Default, bytemuck::TransparentWrapper, Serialize, Deserialize,
+)]
 #[repr(transparent)]
 #[transparent(U)]
 pub struct PackedPrimitiveType<U: UnderlierType, Scalar: BinaryField>(

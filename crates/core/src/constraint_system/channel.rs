@@ -49,8 +49,10 @@
 //!                                       +-+-+
 //! ```
 
-use std::collections::HashMap;
-use std::io::{self, Write, Read};
+use std::{
+	collections::HashMap,
+	io::{self, Read, Write},
+};
 
 use binius_field::{as_packed_field::PackScalar, underlier::UnderlierType, TowerField};
 
@@ -74,7 +76,7 @@ impl Flush {
 		writer.write_all((self.oracles.len() as u32).to_le_bytes().as_slice())?;
 		for oracle in self.oracles.iter() {
 			writer.write_all((*oracle as u32).to_le_bytes().as_slice())?;
-		};
+		}
 
 		// channel_id
 		writer.write_all((self.channel_id as u32).to_le_bytes().as_slice())?;
@@ -83,10 +85,10 @@ impl Flush {
 		match self.direction {
 			FlushDirection::Push => {
 				writer.write_all(1u32.to_le_bytes().as_slice())?;
-			},
+			}
 			FlushDirection::Pull => {
 				writer.write_all(2u32.to_le_bytes().as_slice())?;
-			},
+			}
 		}
 
 		// count
@@ -97,7 +99,6 @@ impl Flush {
 
 		Ok(())
 	}
-
 
 	pub fn read<R: Read>(mut reader: R) -> io::Result<Self> {
 		// oracles
@@ -123,12 +124,8 @@ impl Flush {
 		reader.read_exact(&mut direction_bytes)?;
 		let direction = u32::from_le_bytes(direction_bytes);
 		let direction = match direction {
-			1u32 => {
-				FlushDirection::Push
-			},
-			2u32 => {
-				FlushDirection::Pull
-			},
+			1u32 => FlushDirection::Push,
+			2u32 => FlushDirection::Pull,
 			_ => unreachable!(),
 		};
 
@@ -142,15 +139,13 @@ impl Flush {
 		reader.read_exact(&mut multiplicity_bytes)?;
 		let multiplicity = u64::from_le_bytes(multiplicity_bytes);
 
-		Ok(
-			Flush {
-				oracles,
-				channel_id,
-				direction,
-				count,
-				multiplicity,
-			}
-		)
+		Ok(Flush {
+			oracles,
+			channel_id,
+			direction,
+			count,
+			multiplicity,
+		})
 	}
 }
 
