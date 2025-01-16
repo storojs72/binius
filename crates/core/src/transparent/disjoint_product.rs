@@ -3,10 +3,11 @@
 use binius_field::Field;
 use binius_utils::bail;
 
+use serde::{Serialize, Deserialize};
 use crate::polynomial::{Error, MultivariatePoly};
 
 /// Represents a product of two multilinear polynomials over disjoint variables.
-#[derive(Debug)]
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct DisjointProduct<P0, P1>(pub P0, pub P1);
 
 impl<F: Field, P0, P1> MultivariatePoly<F> for DisjointProduct<P0, P1>
@@ -38,5 +39,75 @@ where
 
 	fn binary_tower_level(&self) -> usize {
 		self.0.binary_tower_level().max(self.1.binary_tower_level())
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use serde_test::{assert_tokens, Token};
+	use binius_field::{BinaryField128b, Field};
+	use crate::transparent::constant::Constant;
+	use crate::transparent::disjoint_product::DisjointProduct;
+
+	#[test]
+	fn test_ser_de() {
+		type F = BinaryField128b;
+		let one = F::ONE;
+		let two = F::from(2u128);
+
+		let c1 = Constant {
+			n_vars: 100usize,
+			value: one,
+			tower_level: 15usize,
+		};
+
+		let c2 = Constant {
+			n_vars: 200usize,
+			value: two,
+			tower_level: 30usize,
+		};
+
+		let disjoint_product = DisjointProduct(c1, c2);
+
+		assert_tokens(
+			&disjoint_product,
+			&[
+				Token::TupleStruct {
+					name: "DisjointProduct",
+					len: 2,
+				},
+
+				Token::Struct {
+					name: "Constant",
+					len: 3
+				},
+				Token::Str("n_vars"),
+				Token::U64(100),
+				Token::Str("value"),
+				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::Str("tower_level"),
+				Token::U64(15),
+				Token::StructEnd,
+
+				Token::Struct {
+					name: "Constant",
+					len: 3
+				},
+				Token::Str("n_vars"),
+				Token::U64(200),
+				Token::Str("value"),
+				Token::Bytes(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::Str("tower_level"),
+				Token::U64(30),
+				Token::StructEnd,
+
+				Token::TupleStructEnd,
+			]
+		);
+
+		let bytes = bincode::serialize(&disjoint_product).unwrap();
+		let de: DisjointProduct<Constant<F>, Constant<F>> = bincode::deserialize(&bytes).unwrap();
+
+		assert_eq!(de, disjoint_product);
 	}
 }
