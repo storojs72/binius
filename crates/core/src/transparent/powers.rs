@@ -10,10 +10,11 @@ use itertools::{izip, Itertools};
 use rayon::prelude::*;
 
 use crate::polynomial::{Error, MultivariatePoly};
+use serde::{Serialize, Deserialize};
 
 /// A transparent multilinear polynomial whose evaluation at index $i$ is $g^i$ for
 /// some field element $g$.
-#[derive(Debug)]
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct Powers<F: Field> {
 	n_vars: usize,
 	base: F,
@@ -81,11 +82,13 @@ impl<F: TowerField, P: PackedField<Scalar = F>> MultivariatePoly<P> for Powers<F
 
 #[cfg(test)]
 mod tests {
-	use binius_field::{BinaryField32b, Field, PackedBinaryField4x32b, PackedField, TowerField};
+	use binius_field::{BinaryField128b, BinaryField32b, Field, PackedBinaryField4x32b, PackedField, TowerField};
 	use rand::{prelude::StdRng, SeedableRng};
 
 	use super::Powers;
 	use crate::polynomial::MultivariatePoly;
+	use serde_test::{assert_tokens, Token};
+
 
 	fn test_consistency_helper<P: PackedField<Scalar: TowerField>>(n_vars: usize, base: P::Scalar) {
 		let powers = Powers::new(n_vars, base);
@@ -115,5 +118,34 @@ mod tests {
 		for n_vars in 0..12 {
 			test_consistency_helper::<P>(n_vars, <F as Field>::random(&mut rng));
 		}
+	}
+
+	#[test]
+	fn test_ser_de() {
+		type F = BinaryField128b;
+		let three = F::from(3u128);
+
+		let instance = Powers {
+			n_vars: 200usize,
+			base: three
+		};
+
+		assert_tokens(
+			&instance,
+			&[
+				Token::Struct { name: "Powers", len: 2},
+
+				Token::Str("n_vars"),
+				Token::U64(200),
+				Token::Str("base"),
+				Token::Bytes(&[3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+
+				Token::StructEnd,
+			]
+		);
+
+		let bytes = bincode::serialize(&instance).unwrap();
+		let de: Powers<F> = bincode::deserialize(&bytes).unwrap();
+		assert_eq!(de, instance);
 	}
 }
