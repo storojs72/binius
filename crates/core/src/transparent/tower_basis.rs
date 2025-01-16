@@ -7,6 +7,7 @@ use binius_math::MultilinearExtension;
 use binius_utils::bail;
 
 use crate::polynomial::{Error, MultivariatePoly};
+use serde::{Serialize, Deserialize};
 
 /// Represents the $\mathcal{T}_{\iota}$-basis of $\mathcal{T}_{\iota+k}$
 ///
@@ -20,7 +21,7 @@ use crate::polynomial::{Error, MultivariatePoly};
 ///
 /// Thus, $\mathcal{T}_{\iota+k}$ has a $\mathcal{T}_{\iota}$-basis of size $2^k$:
 /// * $1, X_{\iota}, X_{\iota+1}, X_{\iota}X_{\iota+1}, X_{\iota+2}, \ldots, X_{\iota} X_{\iota+1} \ldots X_{\iota+k-1}$
-#[derive(Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct TowerBasis<F: Field> {
 	k: usize,
 	iota: usize,
@@ -100,6 +101,7 @@ mod tests {
 	use binius_field::{BinaryField128b, BinaryField32b, PackedBinaryField4x32b};
 	use binius_hal::{make_portable_backend, ComputationBackendExt};
 	use rand::{rngs::StdRng, SeedableRng};
+	use serde_test::{assert_tokens, Token};
 
 	use super::*;
 
@@ -148,5 +150,29 @@ mod tests {
 				test_consistency(iota, k);
 			}
 		}
+	}
+
+	#[test]
+	fn test_ser_de() {
+		type F = BinaryField128b;
+		let instance = TowerBasis {
+			k: 100usize,
+			iota: 200usize,
+			_marker: PhantomData::<F>::default()
+		};
+
+		assert_tokens(
+			&instance,
+			&[
+				Token::Struct{ name: "TowerBasis", len: 3},
+				Token::Str("k"),
+				Token::U64(100),
+				Token::Str("iota"),
+				Token::U64(200),
+				Token::Str("_marker"),
+				Token::UnitStruct { name: "PhantomData" },
+				Token::StructEnd,
+			],
+		);
 	}
 }
