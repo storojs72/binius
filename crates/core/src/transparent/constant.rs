@@ -80,22 +80,10 @@ mod test {
 				Token::U64(1),
 				Token::StructEnd,
 			],
-		)
-	}
-
-	#[test]
-	fn test_bincode_serialize() {
-		type F = BinaryField128b;
-		let c = Constant {
-			n_vars: 100usize,
-			value: F::ONE,
-			tower_level: 1usize,
-		};
+		);
 
 		let bytes = bincode::serialize(&c).unwrap();
-
 		let c_de: Constant<F> = bincode::deserialize(&bytes).unwrap();
-
 		assert_eq!(c, c_de);
 	}
 }
