@@ -16,6 +16,7 @@ use crate::{
 	polynomial::{Error as PolynomialError, MultivariatePoly},
 	tensor_algebra::TensorAlgebra,
 };
+use serde::{Serialize, Deserialize};
 
 /// The multilinear function $A$ from [DP24] Section 5.
 ///
@@ -23,7 +24,7 @@ use crate::{
 /// of the evaluation point as well as the $\kappa$ mixing challenges.
 ///
 /// [DP24]: <https://eprint.iacr.org/2024/504>
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct RingSwitchEqInd<FSub, F> {
 	/// $z_{\kappa}, \ldots, z_{\ell-1}$
 	z_vals: Arc<[F]>,
@@ -123,6 +124,7 @@ mod tests {
 	use binius_math::MultilinearQuery;
 	use iter::repeat_with;
 	use rand::{prelude::StdRng, SeedableRng};
+	use serde_test::{assert_tokens, Token};
 
 	use super::*;
 
@@ -157,5 +159,54 @@ mod tests {
 		let val1 = rs_eq.evaluate(&eval_point).unwrap();
 		let val2 = mle.evaluate(&eval_query).unwrap();
 		assert_eq!(val1, val2);
+	}
+
+	#[test]
+	fn test_ser_de() {
+		type FS = BinaryField8b;
+		type F = BinaryField128b;
+
+		let one = F::from(1u128);
+		let two = F::from(2u128);
+
+		let three = F::from(3u128);
+		let four = F::from(4u128);
+
+		let five = F::from(5u128);
+
+		let instance = RingSwitchEqInd {
+			z_vals: Arc::new([one, two]),
+			row_batch_coeffs: Arc::new([three, four]),
+			mixing_coeff: five,
+			_marker: PhantomData::<FS>::default()
+		};
+
+		assert_tokens(
+			&instance,
+			&[
+				Token::Struct { name: "RingSwitchEqInd", len: 4 },
+
+				Token::Str("z_vals"),
+				Token::Seq{ len: Some(2)},
+				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::Bytes(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::SeqEnd,
+
+				Token::Str("row_batch_coeffs"),
+				Token::Seq{ len: Some(2)},
+				Token::Bytes(&[3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::Bytes(&[4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::SeqEnd,
+
+				Token::Str("mixing_coeff"),
+				Token::Bytes(&[5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+
+				Token::Str("_marker"),
+				Token::UnitStruct { name: "PhantomData"},
+
+				Token::StructEnd,
+			]
+		);
+
 	}
 }
