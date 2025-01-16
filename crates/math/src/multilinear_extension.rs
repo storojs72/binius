@@ -13,6 +13,7 @@ use binius_utils::{bail, checked_arithmetics::log2_strict_usize};
 use bytemuck::zeroed_vec;
 use rayon::prelude::*;
 use tracing::instrument;
+use serde::{Serialize, Deserialize};
 
 use crate::{fold, Error, MultilinearQueryRef, PackingDeref};
 
@@ -22,7 +23,7 @@ use crate::{fold, Error, MultilinearQueryRef, PackingDeref};
 /// evaluations. The evaluation data may be either a borrowed or owned slice.
 ///
 /// The packed field width must be a power of two.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MultilinearExtension<P: PackedField, Data: Deref<Target = [P]> = Vec<P>> {
 	// The number of variables
 	pub mu: usize,
@@ -342,9 +343,12 @@ mod tests {
 	};
 	use itertools::Itertools;
 	use rand::{rngs::StdRng, SeedableRng};
+	use binius_field::arch::OptimalUnderlier;
 
 	use super::*;
 	use crate::{tensor_prod_eq_ind, MultilinearQuery};
+
+
 
 	/// Expand the tensor product of the query values.
 	///
@@ -586,5 +590,24 @@ mod tests {
 			vec![PackedType::<OptimalUnderlier256b, BinaryField32b>::one()],
 		)
 		.unwrap();
+	}
+
+
+	#[test]
+	fn test_ser_de() {
+		type U = OptimalUnderlier;
+		type F = BinaryField32b;
+
+		let instance = MultilinearExtension::new(
+			1,
+			vec![PackedType::<U, F>::one()],
+		)
+			.unwrap();
+
+		// serde_test is not used as it doesn't support evaluation of u128 serialization
+
+		let bytes = bincode::serialize(&instance).unwrap();
+		let de: MultilinearExtension<PackedType<U, F>, _> = bincode::deserialize(&bytes).unwrap();
+		assert_eq!(instance, de);
 	}
 }

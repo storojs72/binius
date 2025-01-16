@@ -8,6 +8,8 @@ use binius_math::{MLEEmbeddingAdapter, MultilinearExtension, MultilinearPoly};
 
 use crate::polynomial::{Error, MultivariatePoly};
 
+use serde::{Serialize, Deserialize};
+
 /// A transparent multilinear polynomial defined as the multilinear extension over a small
 /// hypercube.
 ///
@@ -15,7 +17,7 @@ use crate::polynomial::{Error, MultivariatePoly};
 /// evaluation of multilinear extensions is generally exponential in the number of variables, when
 /// the number of variables is very small, and thus the evaluation hypercube is small, we can
 /// consider such a multilinear extension to be transparent.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MultilinearExtensionTransparent<P, PE, Data = Vec<P>>
 where
 	P: PackedField,
@@ -74,5 +76,42 @@ where
 
 	fn binary_tower_level(&self) -> usize {
 		F::TOWER_LEVEL - self.data.log_extension_degree()
+	}
+}
+
+#[cfg(test)]
+mod test {
+	use std::marker::PhantomData;
+	use binius_field::PackedField;
+	use binius_field::arch::OptimalUnderlier;
+	use binius_field::as_packed_field::PackedType;
+	use binius_field::BinaryField32b;
+	use binius_math::{MLEEmbeddingAdapter, MultilinearExtension};
+	use crate::transparent::MultilinearExtensionTransparent;
+
+	#[test]
+	fn test_ser_de() {
+		type U = OptimalUnderlier;
+		type F = BinaryField32b;
+		type PackedF = PackedType<U, F>;
+
+		let me = MultilinearExtension::new(
+			1,
+			vec![PackedF::one()],
+		)
+			.unwrap();
+
+		let adapter = MLEEmbeddingAdapter {
+			0: me,
+			1: PhantomData::<PackedF>::default()
+		};
+
+		let instance = MultilinearExtensionTransparent {
+			data: adapter
+		};
+
+		let bytes = bincode::serialize(&instance).unwrap();
+		let de: MultilinearExtensionTransparent<PackedF, _> = bincode::deserialize(&bytes).unwrap();
+		assert_eq!(de, instance);
 	}
 }
