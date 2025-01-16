@@ -9,6 +9,8 @@ use crate::{
 	polynomial::{Error, MultivariatePoly},
 };
 
+use serde::{Serialize, Deserialize};
+
 /// Represents MLE of shift indicator $f_{b, o}(X, Y)$ on $2*b$ variables
 /// partially evaluated at $Y = r$
 ///
@@ -81,7 +83,8 @@ use crate::{
 ///     * $f((1, 1), (0, 1)) = 1$ because $2 + 1 = 3$
 /// and every other pair of $b$-variate hypercube points $x, y \in \{0, 1\}^{b}$ is s.t. f(x, y) = 0.
 /// Using these shift params, if f = [[a_i, b_i, c_i, d_i]_i], then shifted_f = [[0, a_i, b_i, c_i]_i]
-#[derive(Debug, Clone)]
+///
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct ShiftIndPartialEval<F: Field> {
 	/// Block size $b$, also the number of variables
 	block_size: usize,
@@ -346,12 +349,14 @@ fn partial_evaluate_hypercube_with_buffers<P: PackedFieldIndexable>(
 mod tests {
 	use std::iter::repeat_with;
 
-	use binius_field::{BinaryField32b, PackedBinaryField4x32b};
+	use binius_field::{BinaryField128b, BinaryField32b, PackedBinaryField4x32b};
 	use binius_hal::{make_portable_backend, ComputationBackendExt};
 	use rand::{rngs::StdRng, SeedableRng};
 
 	use super::*;
 	use crate::polynomial::test_utils::decompose_index_to_hypercube_point;
+
+	use serde_test::{assert_tokens, Token};
 
 	// Consistency Tests for each shift variant
 	fn test_circular_left_shift_consistency_help<
@@ -596,5 +601,41 @@ mod tests {
 				);
 			}
 		}
+	}
+
+	#[test]
+	fn test_ser_de() {
+		type F = BinaryField128b;
+		let one = F::from(1u128);
+		let two = F::from(2u128);
+		let three = F::from(3u128);
+
+		let instance = ShiftIndPartialEval {
+			block_size: 20usize,
+			shift_offset: 10usize,
+			shift_variant: ShiftVariant::CircularLeft,
+			r: vec![one, two, three],
+		};
+
+		assert_tokens(
+			&instance,
+			&[
+				Token::Struct { name: "ShiftIndPartialEval", len: 4},
+
+				Token::Str("block_size"),
+				Token::U64(20),
+				Token::Str("shift_offset"),
+				Token::U64(10),
+				Token::Str("shift_variant"),
+				Token::UnitVariant { name: "ShiftVariant", variant: "CircularLeft" },
+				Token::Str("r"),
+				Token::Seq {len: Some(3)},
+				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::Bytes(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::Bytes(&[3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::SeqEnd,
+				Token::StructEnd,
+			]
+		);
 	}
 }
