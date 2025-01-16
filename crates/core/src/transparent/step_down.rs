@@ -6,6 +6,8 @@ use binius_utils::bail;
 
 use crate::polynomial::{Error, MultivariatePoly};
 
+use serde::{Serialize, Deserialize};
+
 /// Represents a multilinear F2-polynomial whose evaluations over the hypercube are
 /// 1 until a specified index where they change to 0.
 ///
@@ -20,7 +22,7 @@ use crate::polynomial::{Error, MultivariatePoly};
 /// ```
 ///
 /// This is useful for making constraints that are not enforced at the last rows of the trace
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct StepDown {
 	n_vars: usize,
 	index: usize,
@@ -113,6 +115,7 @@ mod tests {
 
 	use super::StepDown;
 	use crate::polynomial::test_utils::{hypercube_evals_from_oracle, packed_slice};
+	use serde_test::{assert_tokens, Token};
 
 	#[test]
 	fn test_step_down_trace_without_packing_simple_cases() {
@@ -257,5 +260,32 @@ mod tests {
 			.unwrap()
 			.evals()
 			.to_vec()
+	}
+
+	#[test]
+	fn test_ser_de() {
+		let instance = StepDown {
+			n_vars: 200usize,
+			index: 1usize,
+		};
+
+		assert_tokens(
+			&instance,
+			&[
+				Token::Struct{ name: "StepDown", len: 2},
+
+				Token::Str("n_vars"),
+				Token::U64(200),
+				Token::Str("index"),
+				Token::U64(1),
+
+				Token::StructEnd,
+			],
+		);
+
+		let bytes = bincode::serialize(&instance).unwrap();
+		let de: StepDown = bincode::deserialize(&bytes).unwrap();
+
+		assert_eq!(de, instance);
 	}
 }
