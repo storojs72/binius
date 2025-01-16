@@ -10,7 +10,8 @@ use binius_field::{
 };
 use binius_maybe_rayon::prelude::*;
 use binius_utils::bail;
-
+use rayon::prelude::*;
+use serde::{Serialize, Deserialize};
 use super::{Error, MultilinearExtension, MultilinearPoly, MultilinearQueryRef};
 
 /// An adapter for [`MultilinearExtension`] that implements [`MultilinearPoly`] over a packed
@@ -18,10 +19,10 @@ use super::{Error, MultilinearExtension, MultilinearPoly, MultilinearQueryRef};
 ///
 /// This struct implements `MultilinearPoly` for an extension field of the base field that the
 /// multilinear extension is defined over.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MLEEmbeddingAdapter<P, PE, Data = Vec<P>>(
-	MultilinearExtension<P, Data>,
-	PhantomData<PE>,
+	pub MultilinearExtension<P, Data>,
+	pub PhantomData<PE>,
 )
 where
 	P: PackedField,
@@ -523,6 +524,7 @@ mod tests {
 		PackedFieldIndexable,
 	};
 	use rand::prelude::*;
+	use binius_field::arch::OptimalUnderlier;
 
 	use super::*;
 	use crate::{tensor_prod_eq_ind, MultilinearQuery};
@@ -717,5 +719,27 @@ mod tests {
 			.evaluate_partial_low(multilinear_query(&[r]).to_ref())
 			.unwrap();
 		assert_eq!(eval_1, eval_2);
+	}
+
+	#[test]
+	fn test_ser_de() {
+		type U = OptimalUnderlier;
+		type F = BinaryField32b;
+		type PackedF = PackedType<U, F>;
+
+		let me = MultilinearExtension::new(
+			1,
+			vec![PackedF::one()],
+		)
+			.unwrap();
+
+		let instance = MLEEmbeddingAdapter {
+			0: me,
+			1: PhantomData::<PackedF>::default()
+		};
+
+		let bytes = bincode::serialize(&instance).unwrap();
+		let de: MLEEmbeddingAdapter<PackedF, _> = bincode::deserialize(&bytes).unwrap();
+		assert_eq!(de, instance);
 	}
 }
