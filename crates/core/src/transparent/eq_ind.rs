@@ -6,13 +6,14 @@ use binius_math::MultilinearExtension;
 use binius_utils::bail;
 
 use crate::polynomial::{Error, MultivariatePoly};
+use serde::{Serialize, Deserialize};
 
 /// Represents the MLE of the eq(X, Y) polynomial on 2*n_vars variables partially evaluated at Y = r
 ///
 /// Recall that the multilinear polynomial eq(X, Y) is defined s.t. $\forall x, y \in \{0, 1\}^{\mu}$,
 /// eq(x, y) = 1 iff x = y and eq(x, y) = 0 otherwise.
 /// Specifically, the function is defined like so $\prod_{i=0}^{\mu - 1} (X_i * Y_i + (1 - X_i)(1-Y_i))$
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Serialize, Deserialize)]
 pub struct EqIndPartialEval<F: Field> {
 	n_vars: usize,
 	r: Vec<F>,
@@ -74,12 +75,14 @@ impl<F: TowerField, P: PackedField<Scalar = F>> MultivariatePoly<P> for EqIndPar
 mod tests {
 	use std::iter::repeat_with;
 
-	use binius_field::{BinaryField32b, PackedBinaryField4x32b, PackedField};
+	use binius_field::{BinaryField128b, BinaryField32b, PackedBinaryField4x32b, PackedField};
 	use binius_hal::{make_portable_backend, ComputationBackendExt};
 	use rand::{rngs::StdRng, SeedableRng};
 
 	use super::EqIndPartialEval;
 	use crate::polynomial::MultivariatePoly;
+
+	use serde_test::{assert_tokens, Token};
 
 	fn test_eq_consistency_help(n_vars: usize) {
 		type F = BinaryField32b;
@@ -112,5 +115,39 @@ mod tests {
 		for n_vars in 2..=10 {
 			test_eq_consistency_help(n_vars);
 		}
+	}
+
+	#[test]
+	fn test_ser_de() {
+		type F = BinaryField128b;
+		let one = F::from(1u128);
+		let two = F::from(2u128);
+
+		let instance = EqIndPartialEval {
+			n_vars: 100usize,
+			r: vec![one, two]
+		};
+
+		assert_tokens(
+			&instance,
+			&[
+				Token::Struct { name: "EqIndPartialEval", len: 2},
+
+				Token::Str("n_vars"),
+				Token::U64(100),
+
+				Token::Str("r"),
+				Token::Seq {len: Some(2)},
+				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,]),
+				Token::Bytes(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,]),
+				Token::SeqEnd,
+
+				Token::StructEnd,
+			]
+		);
+
+		let bytes = bincode::serialize(&instance).unwrap();
+		let de: EqIndPartialEval<F> = bincode::deserialize(&bytes).unwrap();
+		assert_eq!(de, instance);
 	}
 }
