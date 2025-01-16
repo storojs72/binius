@@ -1,6 +1,12 @@
 // Copyright 2024-2025 Irreducible Inc.
 
-use std::{fmt::{Debug, Display}, hash::Hash, iter::{Product, Sum}, ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign}};
+use std::{
+	fmt::{Debug, Display},
+	hash::Hash,
+	iter::{Product, Sum},
+	ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
+
 use rand::RngCore;
 
 use crate::{

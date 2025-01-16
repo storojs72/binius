@@ -5,9 +5,9 @@ use std::marker::PhantomData;
 use binius_field::{Field, PackedField, TowerField};
 use binius_math::MultilinearExtension;
 use binius_utils::bail;
+use serde::{Deserialize, Serialize};
 
 use crate::polynomial::{Error, MultivariatePoly};
-use serde::{Serialize, Deserialize};
 
 /// Represents the $\mathcal{T}_{\iota}$-basis of $\mathcal{T}_{\iota+k}$
 ///
@@ -158,19 +158,24 @@ mod tests {
 		let instance = TowerBasis {
 			k: 100usize,
 			iota: 200usize,
-			_marker: PhantomData::<F>::default()
+			_marker: PhantomData::<F>::default(),
 		};
 
 		assert_tokens(
 			&instance,
 			&[
-				Token::Struct{ name: "TowerBasis", len: 3},
+				Token::Struct {
+					name: "TowerBasis",
+					len: 3,
+				},
 				Token::Str("k"),
 				Token::U64(100),
 				Token::Str("iota"),
 				Token::U64(200),
 				Token::Str("_marker"),
-				Token::UnitStruct { name: "PhantomData" },
+				Token::UnitStruct {
+					name: "PhantomData",
+				},
 				Token::StructEnd,
 			],
 		);

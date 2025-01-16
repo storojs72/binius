@@ -3,10 +3,9 @@
 use binius_field::{packed::set_packed_slice, BinaryField1b, Field, PackedField};
 use binius_math::MultilinearExtension;
 use binius_utils::bail;
+use serde::{Deserialize, Serialize};
 
 use crate::polynomial::{Error, MultivariatePoly};
-
-use serde::{Serialize, Deserialize};
 
 /// Represents a multilinear F2-polynomial whose evaluations over the hypercube is 1 at
 /// a specific hypercube index, and 0 everywhere else.
@@ -89,12 +88,14 @@ impl<F: Field> MultivariatePoly<F> for SelectRow {
 
 #[cfg(test)]
 mod tests {
-	use binius_field::{BinaryField1b, PackedBinaryField128x1b, PackedBinaryField256x1b, PackedField};
+	use binius_field::{
+		BinaryField1b, PackedBinaryField128x1b, PackedBinaryField256x1b, PackedField,
+	};
 	use binius_utils::felts;
+	use serde_test::{assert_tokens, Token};
 
 	use super::SelectRow;
 	use crate::polynomial::test_utils::{hypercube_evals_from_oracle, packed_slice};
-	use serde_test::{assert_tokens, Token};
 
 	#[test]
 	fn test_select_row_evals_without_packing_simple_cases() {
@@ -222,13 +223,14 @@ mod tests {
 		assert_tokens(
 			&instance,
 			&[
-				Token::Struct{ name: "SelectRow", len: 2},
-
+				Token::Struct {
+					name: "SelectRow",
+					len: 2,
+				},
 				Token::Str("n_vars"),
 				Token::U64(200),
 				Token::Str("index"),
 				Token::U64(1),
-
 				Token::StructEnd,
 			],
 		);

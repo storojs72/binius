@@ -1,8 +1,7 @@
+use binius_acc_utils::prove_verify_test;
 use binius_circuits::{builder::ConstraintSystemBuilder, unconstrained::variable_u128};
 use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b};
 use binius_macros::arith_expr;
-use binius_acc_utils::prove_verify_test;
-
 
 const LOG_SIZE: usize = 10;
 

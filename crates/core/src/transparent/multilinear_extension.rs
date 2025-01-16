@@ -5,10 +5,9 @@ use std::{fmt::Debug, ops::Deref};
 use binius_field::{ExtensionField, PackedField, RepackedExtension, TowerField};
 use binius_hal::{make_portable_backend, ComputationBackendExt};
 use binius_math::{MLEEmbeddingAdapter, MultilinearExtension, MultilinearPoly};
+use serde::{Deserialize, Serialize};
 
 use crate::polynomial::{Error, MultivariatePoly};
-
-use serde::{Serialize, Deserialize};
 
 /// A transparent multilinear polynomial defined as the multilinear extension over a small
 /// hypercube.
@@ -82,11 +81,12 @@ where
 #[cfg(test)]
 mod test {
 	use std::marker::PhantomData;
-	use binius_field::PackedField;
-	use binius_field::arch::OptimalUnderlier;
-	use binius_field::as_packed_field::PackedType;
-	use binius_field::BinaryField32b;
+
+	use binius_field::{
+		arch::OptimalUnderlier, as_packed_field::PackedType, BinaryField32b, PackedField,
+	};
 	use binius_math::{MLEEmbeddingAdapter, MultilinearExtension};
+
 	use crate::transparent::MultilinearExtensionTransparent;
 
 	#[test]
@@ -95,20 +95,14 @@ mod test {
 		type F = BinaryField32b;
 		type PackedF = PackedType<U, F>;
 
-		let me = MultilinearExtension::new(
-			1,
-			vec![PackedF::one()],
-		)
-			.unwrap();
+		let me = MultilinearExtension::new(1, vec![PackedF::one()]).unwrap();
 
 		let adapter = MLEEmbeddingAdapter {
 			0: me,
-			1: PhantomData::<PackedF>::default()
+			1: PhantomData::<PackedF>::default(),
 		};
 
-		let instance = MultilinearExtensionTransparent {
-			data: adapter
-		};
+		let instance = MultilinearExtensionTransparent { data: adapter };
 
 		let bytes = bincode::serialize(&instance).unwrap();
 		let de: MultilinearExtensionTransparent<PackedF, _> = bincode::deserialize(&bytes).unwrap();

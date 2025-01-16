@@ -342,7 +342,9 @@ impl<B: BufMut> TranscriptWriter<'_, B> {
 	pub fn write_slice<T: SerializeBytes>(&mut self, values: &[T]) {
 		let mut buffer = self.buffer();
 		for value in values {
-			value.serialize_to_bytes(&mut buffer).expect("TODO: propagate error")
+			value
+				.serialize_to_bytes(&mut buffer)
+				.expect("TODO: propagate error")
 		}
 	}
 

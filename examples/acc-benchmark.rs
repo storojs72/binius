@@ -1,20 +1,16 @@
-use binius_circuits::{
-	builder::ConstraintSystemBuilder,
-	unconstrained::variable_u128,
-};
+use std::time::Instant;
+
+use binius_circuits::{builder::ConstraintSystemBuilder, unconstrained::variable_u128};
 use binius_core::{
 	constraint_system, constraint_system::ConstraintSystem, fiat_shamir::HasherChallenger,
 	oracle::OracleId, tower::CanonicalTowerFamily, witness::MultilinearExtensionIndex,
 };
-use binius_field::{
-	arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b,
-};
+use binius_field::{arch::OptimalUnderlier, BinaryField128b, BinaryField1b, BinaryField8b};
 use binius_hal::make_portable_backend;
-use binius_macros::arith_expr;
-use groestl_crypto::Groestl256;
-use std::time::Instant;
 use binius_hash::compress::Groestl256ByteCompression;
+use binius_macros::arith_expr;
 use binius_math::DefaultEvaluationDomainFactory;
+use groestl_crypto::Groestl256;
 
 const LOG_SIZE: usize = 10;
 
@@ -95,7 +91,7 @@ fn benchmark_variables<const N: usize>(input: [u128; N]) {
 				LOG_SIZE,
 				item,
 			)
-				.unwrap()
+			.unwrap()
 		})
 		.collect::<Vec<OracleId>>()
 		.try_into()
@@ -128,7 +124,7 @@ fn main() {
 	let input = [1u128; 50000];
 	benchmark_variables(input);
 
-    // TODO: segfault begins happening
+	// TODO: segfault begins happening
 	println!("100000 variables");
 	let input = [1u128; 100000];
 	benchmark_variables(input);

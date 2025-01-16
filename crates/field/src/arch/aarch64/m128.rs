@@ -9,6 +9,7 @@ use bytemuck::{Pod, Zeroable};
 use derive_more::Not;
 use rand::RngCore;
 use seq_macro::seq;
+use serde::{Deserialize, Serialize};
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
 use super::super::portable::{
@@ -24,10 +25,11 @@ use crate::{
 	},
 	BinaryField,
 };
-use serde::{Serialize, Deserialize};
 
 /// 128-bit value that is used for 128-bit SIMD operations
-#[derive(Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Pod, Zeroable, Not, Serialize, Deserialize)]
+#[derive(
+	Copy, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Pod, Zeroable, Not, Serialize, Deserialize,
+)]
 #[repr(transparent)]
 pub struct M128(pub u128);
 

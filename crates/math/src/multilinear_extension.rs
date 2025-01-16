@@ -12,8 +12,8 @@ use binius_field::{
 use binius_maybe_rayon::prelude::*;
 use binius_utils::bail;
 use bytemuck::zeroed_vec;
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use serde::{Serialize, Deserialize};
 
 use crate::{fold, Error, MultilinearQueryRef, PackingDeref};
 
@@ -336,17 +336,15 @@ mod tests {
 	use std::iter::repeat_with;
 
 	use binius_field::{
-		arch::OptimalUnderlier256b, BinaryField128b, BinaryField16b as F, BinaryField32b,
-		BinaryField8b, PackedBinaryField16x8b, PackedBinaryField4x32b, PackedBinaryField8x16b as P,
+		arch::{OptimalUnderlier, OptimalUnderlier256b},
+		BinaryField128b, BinaryField16b as F, BinaryField32b, BinaryField8b,
+		PackedBinaryField16x8b, PackedBinaryField4x32b, PackedBinaryField8x16b as P,
 	};
 	use itertools::Itertools;
 	use rand::{rngs::StdRng, SeedableRng};
-	use binius_field::arch::OptimalUnderlier;
 
 	use super::*;
 	use crate::{tensor_prod_eq_ind, MultilinearQuery};
-
-
 
 	/// Expand the tensor product of the query values.
 	///
@@ -590,17 +588,12 @@ mod tests {
 		.unwrap();
 	}
 
-
 	#[test]
 	fn test_ser_de() {
 		type U = OptimalUnderlier;
 		type F = BinaryField32b;
 
-		let instance = MultilinearExtension::new(
-			1,
-			vec![PackedType::<U, F>::one()],
-		)
-			.unwrap();
+		let instance = MultilinearExtension::new(1, vec![PackedType::<U, F>::one()]).unwrap();
 
 		// serde_test is not used as it doesn't support evaluation of u128 serialization
 

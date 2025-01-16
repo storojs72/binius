@@ -1,16 +1,14 @@
 use anyhow::Result;
+use binius_acc_utils::prove_verify_test;
 use binius_circuits::{
-	bitwise::xor, builder::ConstraintSystemBuilder, sha256, arithmetic,
-	unconstrained::variable,
+	arithmetic, bitwise::xor, builder::ConstraintSystemBuilder, sha256, unconstrained::variable,
 };
 use binius_core::oracle::OracleId;
 use binius_field::{
-	arch::OptimalUnderlier, as_packed_field::PackScalar, BinaryField128b,
-	BinaryField1b, TowerField,
+	arch::OptimalUnderlier, as_packed_field::PackScalar, BinaryField128b, BinaryField1b, TowerField,
 };
 use binius_utils::checked_arithmetics::log2_ceil_usize;
 use bytemuck::Pod;
-use binius_acc_utils::prove_verify_test;
 
 const COMPRESSION_LOG_LEN: usize = 5;
 
@@ -144,14 +142,14 @@ fn in_circuit_computation() -> Result<Vec<u32>> {
 			format!("a + b, oracle_id: {}, oracle_id: {}", state[a], state[b]),
 			state[a],
 			state[b],
-			arithmetic::Flags::Unchecked
+			arithmetic::Flags::Unchecked,
 		)?;
 		let state_a = arithmetic::u32::add(
 			builder,
 			format!("a + b + mx, oracle_id: {}, oracle_id: {}", a_add_b, mx),
 			a_add_b,
 			mx,
-			arithmetic::Flags::Unchecked
+			arithmetic::Flags::Unchecked,
 		)?;
 		let d_xor_a = xor(
 			builder,
@@ -172,7 +170,7 @@ fn in_circuit_computation() -> Result<Vec<u32>> {
 			format!("c + d, oracle_id: {}, oracle_id: {}", state[c], state_d),
 			state[c],
 			state_d,
-			arithmetic::Flags::Unchecked
+			arithmetic::Flags::Unchecked,
 		)?;
 		let b_xor_c = xor(
 			builder,
@@ -193,14 +191,14 @@ fn in_circuit_computation() -> Result<Vec<u32>> {
 			format!("a + b, oracle_id: {}, oracle_id: {}", state_a, state_b),
 			state_a,
 			state_b,
-			arithmetic::Flags::Unchecked
+			arithmetic::Flags::Unchecked,
 		)?;
 		let state_a = arithmetic::u32::add(
 			builder,
 			format!("a + b + my, oracle_id: {}, oracle_id: {}", state_a, my),
 			state_a,
 			my,
-			arithmetic::Flags::Unchecked
+			arithmetic::Flags::Unchecked,
 		)?;
 		let d_xor_a = xor(
 			builder,
@@ -221,7 +219,7 @@ fn in_circuit_computation() -> Result<Vec<u32>> {
 			format!("c + d, oracle_id: {}, oracle_id: {}", state_c, state_d),
 			state_c,
 			state_d,
-			arithmetic::Flags::Unchecked
+			arithmetic::Flags::Unchecked,
 		)?;
 
 		let b_xor_c = xor(

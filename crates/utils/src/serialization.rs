@@ -62,7 +62,8 @@ mod tests {
 		let mut buf = Vec::new();
 		data.serialize_to_bytes(&mut buf).unwrap();
 
-		let data_deserialized = GenericArray::<u8, U32>::deserialize_from_bytes(&mut buf.as_slice()).unwrap();
+		let data_deserialized =
+			GenericArray::<u8, U32>::deserialize_from_bytes(&mut buf.as_slice()).unwrap();
 		assert_eq!(data_deserialized, data);
 	}
 }

@@ -12,6 +12,7 @@ use binius_utils::serialization::{DeserializeBytes, Error as SerializationError,
 use bytemuck::{Pod, Zeroable};
 use bytes::{Buf, BufMut};
 use rand::RngCore;
+use serde::{de, Deserializer, Serialize, Serializer};
 use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
 use super::{
@@ -21,8 +22,6 @@ use crate::{
 	underlier::{SmallU, U1, U2, U4},
 	Field,
 };
-
-use serde::{de, Deserializer, Serialize, Serializer};
 
 /// A finite field with characteristic 2.
 pub trait BinaryField: ExtensionField<BinaryField1b> {
@@ -695,7 +694,10 @@ unsafe impl Pod for BinaryField128b {}
 macro_rules! serde_serialize_deserialize_binary_field {
 	($bin_type:ty) => {
 		impl Serialize for $bin_type {
-			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+			where
+				S: Serializer,
+			{
 				let mut buffer = bytes::BytesMut::new();
 				self.serialize_to_bytes(&mut buffer).unwrap();
 				buffer.serialize(serializer)
@@ -703,13 +705,16 @@ macro_rules! serde_serialize_deserialize_binary_field {
 		}
 
 		impl<'de> de::Deserialize<'de> for $bin_type {
-			fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+			fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+			where
+				D: Deserializer<'de>,
+			{
 				let mut bytes = bytes::Bytes::deserialize(deserializer)?;
 				let value = <$bin_type>::deserialize_from_bytes(&mut bytes).unwrap();
 				Ok(value)
 			}
 		}
-	}
+	};
 }
 
 serde_serialize_deserialize_binary_field!(BinaryField128b);
@@ -740,7 +745,10 @@ pub fn is_canonical_tower<F: TowerField>() -> bool {
 macro_rules! serialize_deserialize {
 	($bin_type:ty, SmallU<$U:literal>) => {
 		impl SerializeBytes for $bin_type {
-			fn serialize_to_bytes(&self, mut write_buf: impl BufMut) -> Result<(), SerializationError> {
+			fn serialize_to_bytes(
+				&self,
+				mut write_buf: impl BufMut,
+			) -> Result<(), SerializationError> {
 				if write_buf.remaining_mut() < 1 {
 					::binius_utils::bail!(SerializationError::WriteBufferFull);
 				}
@@ -762,7 +770,10 @@ macro_rules! serialize_deserialize {
 	};
 	($bin_type:ty, $inner_type:ty) => {
 		impl SerializeBytes for $bin_type {
-			fn serialize_to_bytes(&self, mut write_buf: impl BufMut) -> Result<(), SerializationError> {
+			fn serialize_to_bytes(
+				&self,
+				mut write_buf: impl BufMut,
+			) -> Result<(), SerializationError> {
 				if write_buf.remaining_mut() < (<$inner_type>::BITS / 8) as usize {
 					::binius_utils::bail!(SerializationError::WriteBufferFull);
 				}
@@ -900,7 +911,6 @@ impl From<BinaryField4b> for u8 {
 pub(crate) mod tests {
 	use bytes::BytesMut;
 	use proptest::prelude::*;
-	use rand::thread_rng;
 
 	use super::{
 		BinaryField16b as BF16, BinaryField1b as BF1, BinaryField2b as BF2, BinaryField4b as BF4,
@@ -1335,56 +1345,21 @@ pub(crate) mod tests {
 	fn test_ser_de() {
 		assert_tokens(
 			&BinaryField128b::ONE,
-			&[
-				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-			]
+			&[Token::Bytes(&[
+				1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			])],
 		);
-		assert_tokens(
-			&BinaryField64b::ONE,
-			&[
-				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0])
-			]
-		);
-		assert_tokens(
-			&BinaryField32b::ONE,
-			&[
-				Token::Bytes(&[1, 0, 0, 0])
-			]
-		);
+		assert_tokens(&BinaryField64b::ONE, &[Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0])]);
+		assert_tokens(&BinaryField32b::ONE, &[Token::Bytes(&[1, 0, 0, 0])]);
 
-		assert_tokens(
-			&BinaryField16b::ONE,
-			&[
-				Token::Bytes(&[1, 0])
-			]
-		);
+		assert_tokens(&BinaryField16b::ONE, &[Token::Bytes(&[1, 0])]);
 
-		assert_tokens(
-			&BinaryField8b::ONE,
-			&[
-				Token::Bytes(&[1])
-			]
-		);
+		assert_tokens(&BinaryField8b::ONE, &[Token::Bytes(&[1])]);
 
-		assert_tokens(
-			&BinaryField4b::ONE,
-			&[
-				Token::Bytes(&[1])
-			]
-		);
+		assert_tokens(&BinaryField4b::ONE, &[Token::Bytes(&[1])]);
 
-		assert_tokens(
-			&BinaryField2b::ONE,
-			&[
-				Token::Bytes(&[1])
-			]
-		);
+		assert_tokens(&BinaryField2b::ONE, &[Token::Bytes(&[1])]);
 
-		assert_tokens(
-			&BinaryField1b::ONE,
-			&[
-				Token::Bytes(&[1])
-			]
-		);
+		assert_tokens(&BinaryField1b::ONE, &[Token::Bytes(&[1])]);
 	}
 }

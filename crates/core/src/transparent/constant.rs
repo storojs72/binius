@@ -2,9 +2,9 @@
 
 use binius_field::{ExtensionField, TowerField};
 use binius_utils::bail;
+use serde::{Deserialize, Serialize};
 
 use crate::polynomial::{Error, MultivariatePoly};
-use serde::{Serialize, Deserialize};
 
 /// A constant polynomial.
 #[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
@@ -53,8 +53,9 @@ impl<F: TowerField> MultivariatePoly<F> for Constant<F> {
 #[cfg(test)]
 mod test {
 	use binius_field::{BinaryField128b, Field};
-	use crate::transparent::constant::Constant;
 	use serde_test::{assert_tokens, Token};
+
+	use crate::transparent::constant::Constant;
 
 	#[test]
 	fn test_ser_de() {
@@ -70,7 +71,7 @@ mod test {
 			&[
 				Token::Struct {
 					name: "Constant",
-					len: 3
+					len: 3,
 				},
 				Token::Str("n_vars"),
 				Token::U64(100),

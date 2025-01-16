@@ -4,9 +4,9 @@ use binius_field::{Field, PackedField, TowerField};
 use binius_hal::ComputationBackend;
 use binius_math::MultilinearExtension;
 use binius_utils::bail;
+use serde::{Deserialize, Serialize};
 
 use crate::polynomial::{Error, MultivariatePoly};
-use serde::{Serialize, Deserialize};
 
 /// Represents the MLE of the eq(X, Y) polynomial on 2*n_vars variables partially evaluated at Y = r
 ///
@@ -78,11 +78,10 @@ mod tests {
 	use binius_field::{BinaryField128b, BinaryField32b, PackedBinaryField4x32b, PackedField};
 	use binius_hal::{make_portable_backend, ComputationBackendExt};
 	use rand::{rngs::StdRng, SeedableRng};
+	use serde_test::{assert_tokens, Token};
 
 	use super::EqIndPartialEval;
 	use crate::polynomial::MultivariatePoly;
-
-	use serde_test::{assert_tokens, Token};
 
 	fn test_eq_consistency_help(n_vars: usize) {
 		type F = BinaryField32b;
@@ -125,25 +124,25 @@ mod tests {
 
 		let instance = EqIndPartialEval {
 			n_vars: 100usize,
-			r: vec![one, two]
+			r: vec![one, two],
 		};
 
 		assert_tokens(
 			&instance,
 			&[
-				Token::Struct { name: "EqIndPartialEval", len: 2},
-
+				Token::Struct {
+					name: "EqIndPartialEval",
+					len: 2,
+				},
 				Token::Str("n_vars"),
 				Token::U64(100),
-
 				Token::Str("r"),
-				Token::Seq {len: Some(2)},
-				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,]),
-				Token::Bytes(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,]),
+				Token::Seq { len: Some(2) },
+				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::Bytes(&[2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
 				Token::SeqEnd,
-
 				Token::StructEnd,
-			]
+			],
 		);
 
 		let bytes = bincode::serialize(&instance).unwrap();

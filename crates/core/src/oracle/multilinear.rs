@@ -1,20 +1,25 @@
 // Copyright 2024-2025 Irreducible Inc.
 
-use std::{array, fmt::Debug, sync::Arc};
-use std::io::{self, Write, Read};
-use bytes::BytesMut;
+use std::{
+	array,
+	fmt::Debug,
+	io::{self, Read, Write},
+	sync::Arc,
+};
 
 use binius_field::{Field, TowerField};
-use binius_utils::bail;
+use binius_utils::{
+	bail,
+	serialization::{DeserializeBytes, SerializeBytes},
+};
+use bytes::BytesMut;
 use getset::{CopyGetters, Getters};
-use binius_utils::serialization::{DeserializeBytes, SerializeBytes};
+use serde::{Deserialize, Serialize};
 
 use crate::{
 	oracle::{CompositePolyOracle, Error},
 	polynomial::{Error as PolynomialError, IdentityCompositionPoly, MultivariatePoly},
 };
-
-use serde::{Serialize, Deserialize};
 
 /// Identifier for a multilinear oracle in a [`MultilinearOracleSet`].
 pub type OracleId = usize;
@@ -285,9 +290,7 @@ impl<F: TowerField + SerializeBytes + DeserializeBytes> MultilinearOracleSet<F> 
 			oracles.push(Arc::new(oracle));
 		}
 
-		Ok(MultilinearOracleSet{
-			oracles
-		})
+		Ok(MultilinearOracleSet { oracles })
 	}
 }
 
@@ -519,7 +522,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 			1u32 => {
 				// Transparent
 				todo!()
-			},
+			}
 			2u32 => {
 				four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
@@ -535,13 +538,13 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 
 				let name = read_name(&mut reader)?;
 
-				MultilinearPolyOracle::Committed{
+				MultilinearPolyOracle::Committed {
 					oracle_id,
 					n_vars,
 					tower_level,
-					name
+					name,
 				}
-			},
+			}
 			3u32 => {
 				four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
@@ -564,9 +567,9 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 					id,
 					inner: Arc::new(inner),
 					log_count,
-					name
+					name,
 				}
-			},
+			}
 			4u32 => {
 				four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
@@ -583,9 +586,9 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 				MultilinearPolyOracle::Projected {
 					id,
 					projected,
-					name
+					name,
 				}
-			},
+			}
 			5u32 => {
 				four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
@@ -599,12 +602,8 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 				let shifted = Shifted::<F>::read(buffer.as_slice())?;
 
 				let name = read_name(&mut reader)?;
-				MultilinearPolyOracle::Shifted {
-					id,
-					shifted,
-					name
-				}
-			},
+				MultilinearPolyOracle::Shifted { id, shifted, name }
+			}
 			6u32 => {
 				four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
@@ -618,12 +617,8 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 				let packed = Packed::<F>::read(buffer.as_slice())?;
 
 				let name = read_name(&mut reader)?;
-				MultilinearPolyOracle::Packed {
-					id,
-					packed,
-					name
-				}
-			},
+				MultilinearPolyOracle::Packed { id, packed, name }
+			}
 			7u32 => {
 				four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
@@ -640,9 +635,9 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 				MultilinearPolyOracle::LinearCombination {
 					id,
 					linear_combination,
-					name
+					name,
 				}
-			},
+			}
 			8u32 => {
 				four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
@@ -661,16 +656,16 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 
 				let name = read_name(&mut reader)?;
 
-				MultilinearPolyOracle::ZeroPadded{
+				MultilinearPolyOracle::ZeroPadded {
 					id,
 					inner,
 					n_vars,
-					name
+					name,
 				}
-			},
+			}
 			_ => {
 				unreachable!("MultilinearPolyOracle read unreachable");
-			},
+			}
 		};
 
 		Ok(oracle)
@@ -707,14 +702,14 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 				oracle_id,
 				n_vars,
 				tower_level,
-				name
+				name,
 			} => {
 				writer.write_all(2u32.to_le_bytes().as_slice())?;
 				writer.write_all((*oracle_id as u32).to_le_bytes().as_slice())?;
 				writer.write_all((*n_vars as u32).to_le_bytes().as_slice())?;
 				writer.write_all((*tower_level as u32).to_le_bytes().as_slice())?;
 				write_name(&mut writer, name)?;
-			},
+			}
 			MultilinearPolyOracle::Repeating {
 				id,
 				inner,
@@ -731,7 +726,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 
 				writer.write_all((*log_count as u32).to_le_bytes().as_slice())?;
 				write_name(&mut writer, name)?;
-			},
+			}
 			MultilinearPolyOracle::Projected {
 				id,
 				projected,
@@ -745,12 +740,8 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 				writer.write_all(buffer.as_slice())?;
 
 				write_name(&mut writer, name)?;
-			},
-			MultilinearPolyOracle::Shifted {
-				id,
-				shifted,
-				name,
-			} => {
+			}
+			MultilinearPolyOracle::Shifted { id, shifted, name } => {
 				writer.write_all(5u32.to_le_bytes().as_slice())?;
 				writer.write_all(id.to_le_bytes().as_slice())?;
 
@@ -759,12 +750,8 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 				writer.write_all(buffer.as_slice())?;
 
 				write_name(&mut writer, name)?;
-			},
-			MultilinearPolyOracle::Packed {
-				id,
-				packed,
-				name,
-			} => {
+			}
+			MultilinearPolyOracle::Packed { id, packed, name } => {
 				writer.write_all(6u32.to_le_bytes().as_slice())?;
 				writer.write_all(id.to_le_bytes().as_slice())?;
 
@@ -773,7 +760,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 				writer.write_all(buffer.as_slice())?;
 
 				write_name(&mut writer, name)?;
-			},
+			}
 			MultilinearPolyOracle::LinearCombination {
 				id,
 				linear_combination,
@@ -787,7 +774,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 				writer.write_all(buffer.as_slice())?;
 
 				write_name(&mut writer, name)?;
-			},
+			}
 			MultilinearPolyOracle::ZeroPadded {
 				id,
 				inner,
@@ -803,7 +790,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> MultilinearPolyOracle<F> {
 
 				writer.write_all(n_vars.to_le_bytes().as_slice())?;
 				write_name(&mut writer, name)?;
-			},
+			}
 		}
 		Ok(())
 	}
@@ -903,10 +890,10 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Projected<F> {
 		match self.projection_variant {
 			ProjectionVariant::FirstVars => {
 				writer.write_all(1u32.to_le_bytes().as_slice())?;
-			},
+			}
 			ProjectionVariant::LastVars => {
 				writer.write_all(2u32.to_le_bytes().as_slice())?;
-			},
+			}
 		}
 
 		Ok(())
@@ -936,16 +923,12 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Projected<F> {
 		let value = u32::from_le_bytes(four_bytes_buffer);
 
 		let projection_variant = match value {
-			1u32 => {
-				ProjectionVariant::FirstVars
-			},
-			2u32 => {
-				ProjectionVariant::LastVars
-			},
+			1u32 => ProjectionVariant::FirstVars,
+			2u32 => ProjectionVariant::LastVars,
 			_ => unreachable!("Projected read unreachable"),
 		};
 
-		Ok(Projected{
+		Ok(Projected {
 			inner,
 			values,
 			projection_variant,
@@ -986,13 +969,13 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Shifted<F> {
 		match self.shift_variant {
 			ShiftVariant::CircularLeft => {
 				writer.write_all(1u32.to_le_bytes().as_slice())?;
-			},
+			}
 			ShiftVariant::LogicalLeft => {
 				writer.write_all(2u32.to_le_bytes().as_slice())?;
-			},
+			}
 			ShiftVariant::LogicalRight => {
 				writer.write_all(3u32.to_le_bytes().as_slice())?;
-			},
+			}
 		}
 
 		Ok(())
@@ -1017,9 +1000,9 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Shifted<F> {
 		reader.read_exact(&mut four_bytes_buffer)?;
 		let shift_variant = u32::from_le_bytes(four_bytes_buffer);
 		let shift_variant = match shift_variant {
-			1u32 => { ShiftVariant::CircularLeft },
-			2u32 => { ShiftVariant::LogicalLeft},
-			3u32 => { ShiftVariant::LogicalRight},
+			1u32 => ShiftVariant::CircularLeft,
+			2u32 => ShiftVariant::LogicalLeft,
+			3u32 => ShiftVariant::LogicalRight,
 			_ => unreachable!("Shifted read unreachable"),
 		};
 
@@ -1027,7 +1010,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Shifted<F> {
 			inner,
 			shift_offset,
 			block_size,
-			shift_variant
+			shift_variant,
 		})
 	}
 }
@@ -1099,10 +1082,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> Packed<F> {
 		reader.read_exact(&mut four_bytes_buffer)?;
 		let log_degree = u32::from_le_bytes(four_bytes_buffer) as usize;
 
-		Ok(Packed {
-			inner,
-			log_degree,
-		})
+		Ok(Packed { inner, log_degree })
 	}
 }
 
@@ -1177,7 +1157,7 @@ impl<F: Field + SerializeBytes + DeserializeBytes> LinearCombination<F> {
 			inner.push((poly_oracle, field));
 		}
 
-		Ok(LinearCombination{
+		Ok(LinearCombination {
 			n_vars,
 			offset,
 			inner,

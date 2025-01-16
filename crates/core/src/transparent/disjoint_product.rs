@@ -2,8 +2,8 @@
 
 use binius_field::Field;
 use binius_utils::bail;
+use serde::{Deserialize, Serialize};
 
-use serde::{Serialize, Deserialize};
 use crate::polynomial::{Error, MultivariatePoly};
 
 /// Represents a product of two multilinear polynomials over disjoint variables.
@@ -44,10 +44,10 @@ where
 
 #[cfg(test)]
 mod tests {
-	use serde_test::{assert_tokens, Token};
 	use binius_field::{BinaryField128b, Field};
-	use crate::transparent::constant::Constant;
-	use crate::transparent::disjoint_product::DisjointProduct;
+	use serde_test::{assert_tokens, Token};
+
+	use crate::transparent::{constant::Constant, disjoint_product::DisjointProduct};
 
 	#[test]
 	fn test_ser_de() {
@@ -76,10 +76,9 @@ mod tests {
 					name: "DisjointProduct",
 					len: 2,
 				},
-
 				Token::Struct {
 					name: "Constant",
-					len: 3
+					len: 3,
 				},
 				Token::Str("n_vars"),
 				Token::U64(100),
@@ -88,10 +87,9 @@ mod tests {
 				Token::Str("tower_level"),
 				Token::U64(15),
 				Token::StructEnd,
-
 				Token::Struct {
 					name: "Constant",
-					len: 3
+					len: 3,
 				},
 				Token::Str("n_vars"),
 				Token::U64(200),
@@ -100,9 +98,8 @@ mod tests {
 				Token::Str("tower_level"),
 				Token::U64(30),
 				Token::StructEnd,
-
 				Token::TupleStructEnd,
-			]
+			],
 		);
 
 		let bytes = bincode::serialize(&disjoint_product).unwrap();

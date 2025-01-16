@@ -3,17 +3,16 @@
 use std::{
 	cmp::max,
 	fmt::{self, Display},
+	io::{self, Read, Write},
 	iter::{Product, Sum},
 	ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign},
 };
-use std::io::{self, Write, Read};
 
 use binius_field::Field;
-use binius_utils::serialization::{ SerializeBytes, DeserializeBytes };
+use binius_utils::serialization::{DeserializeBytes, SerializeBytes};
+use bytes::BytesMut;
 
 use super::error::Error;
-
-use bytes::BytesMut;
 
 /// Arithmetic expressions that can be evaluated symbolically.
 ///
@@ -41,7 +40,7 @@ impl<F: Field + Display> Display for ArithExpr<F> {
 	}
 }
 
-impl <F: Field + SerializeBytes + DeserializeBytes> ArithExpr<F> {
+impl<F: Field + SerializeBytes + DeserializeBytes> ArithExpr<F> {
 	pub fn write<W: Write>(&self, mut writer: W) -> io::Result<()> {
 		match self {
 			Self::Const(constant) => {
@@ -110,13 +109,13 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ArithExpr<F> {
 
 				let field = F::deserialize_from_bytes(buffer.to_vec().as_slice()).unwrap();
 				Self::Const(field)
-			},
+			}
 			2u32 => {
 				let mut four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
 				let variable = u32::from_le_bytes(four_bytes_buffer);
 				Self::Var(variable as usize)
-			},
+			}
 			3u32 => {
 				let mut four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
@@ -127,7 +126,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ArithExpr<F> {
 				let addition_left = Self::read(buffer.as_slice())?;
 				let addition_right = Self::read(buffer.as_slice())?;
 				Self::Add(Box::new(addition_left), Box::new(addition_right))
-			},
+			}
 			4u32 => {
 				let mut four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
@@ -138,7 +137,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ArithExpr<F> {
 				let multiplication_left = Self::read(buffer.as_slice())?;
 				let multiplication_right = Self::read(buffer.as_slice())?;
 				Self::Mul(Box::new(multiplication_left), Box::new(multiplication_right))
-			},
+			}
 			5u32 => {
 				let mut four_bytes_buffer = [0u8; 4];
 				reader.read_exact(&mut four_bytes_buffer)?;
@@ -151,7 +150,7 @@ impl <F: Field + SerializeBytes + DeserializeBytes> ArithExpr<F> {
 				reader.read_exact(&mut eight_bytes_buffer)?;
 				let exponent = u64::from_le_bytes(eight_bytes_buffer);
 				Self::Pow(Box::new(power), exponent)
-			},
+			}
 			_ => unreachable!("ArithExpr read unreachable"),
 		};
 
