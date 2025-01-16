@@ -4,11 +4,10 @@ use binius_field::{ExtensionField, TowerField};
 use binius_utils::bail;
 
 use crate::polynomial::{Error, MultivariatePoly};
-//use serde::{Serialize, Serializer};
-//use binius_utils::serialization::{DeserializeBytes, SerializeBytes};
+use serde::{Serialize, Deserialize};
 
 /// A constant polynomial.
-#[derive(Debug, Copy, Clone)]
+#[derive(PartialEq, Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct Constant<F> {
 	pub n_vars: usize,
 	pub value: F,
@@ -51,11 +50,38 @@ impl<F: TowerField> MultivariatePoly<F> for Constant<F> {
 	}
 }
 
-/*
 #[cfg(test)]
 mod test {
 	use binius_field::{BinaryField128b, Field};
 	use crate::transparent::constant::Constant;
+	use serde_test::{assert_tokens, Token};
+
+	#[test]
+	fn test_ser_de() {
+		type F = BinaryField128b;
+		let c = Constant {
+			n_vars: 100usize,
+			value: F::ONE,
+			tower_level: 1usize,
+		};
+
+		assert_tokens(
+			&c,
+			&[
+				Token::Struct {
+					name: "Constant",
+					len: 3
+				},
+				Token::Str("n_vars"),
+				Token::U64(100),
+				Token::Str("value"),
+				Token::Bytes(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+				Token::Str("tower_level"),
+				Token::U64(1),
+				Token::StructEnd,
+			],
+		)
+	}
 
 	#[test]
 	fn test_bincode_serialize() {
@@ -66,6 +92,10 @@ mod test {
 			tower_level: 1usize,
 		};
 
-		bincode::serialize(&c).unwrap();
+		let bytes = bincode::serialize(&c).unwrap();
+
+		let c_de: Constant<F> = bincode::deserialize(&bytes).unwrap();
+
+		assert_eq!(c, c_de);
 	}
-}*/
+}

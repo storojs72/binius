@@ -1332,7 +1332,7 @@ pub(crate) mod tests {
 	use serde_test::{assert_tokens, Token};
 
 	#[test]
-	fn test_ser_de_empty() {
+	fn test_ser_de() {
 		assert_tokens(
 			&BinaryField128b::ONE,
 			&[

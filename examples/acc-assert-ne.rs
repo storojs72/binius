@@ -196,7 +196,7 @@ fn assert_ne_gadget(
 	let one = variable_u128::<_, _, BinaryField1b>(builder, "one", LOG_SIZE, 1u128).unwrap();
 
 	// FIXME: Why 'composition - Const(1)' not possible?
-	builder.assert_zero([ids, vec![one]].concat(), composition - Var(one));
+	builder.assert_zero("assert_ne", [ids, vec![one]].concat(), composition - Var(one));
 }
 
 fn main() {
