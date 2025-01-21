@@ -89,8 +89,14 @@ name = "acc-assert-ne"
 path = "acc-assert-ne.rs"
 
 [[example]]
+name = "acc-arthur"
+path = "acc-arthur.rs"
+
+
+[[example]]
 name = "acc-debug"
 path = "acc-debug.rs"
+
 
 [[example]]
 name = "acc-assert-ne-segfault"
