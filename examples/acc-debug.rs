@@ -8,7 +8,7 @@ use binius_field::{
 use binius_macros::arith_expr;
 use bytemuck::Pod;
 
-fn gadget<U, F, FS>(builder: &mut ConstraintSystemBuilder<U, F>, n_vars: usize)
+fn arbitrary_gadget<U, F, FS>(builder: &mut ConstraintSystemBuilder<U, F>, n_vars: usize)
 where
 	U: UnderlierType + Pod + PackScalar<F> + PackScalar<FS>,
 	F: TowerField + ExtensionField<FS>,
@@ -45,7 +45,7 @@ fn main() {
 	let mut builder =
 		ConstraintSystemBuilder::<OptimalUnderlier, CsF>::new_with_witness(&allocator);
 
-	gadget::<OptimalUnderlier, CsF, VarF>(&mut builder, n_vars);
+	arbitrary_gadget::<OptimalUnderlier, CsF, VarF>(&mut builder, n_vars);
 
 	let witness = builder.take_witness().unwrap();
 	let constraints_system = builder.build().unwrap();
